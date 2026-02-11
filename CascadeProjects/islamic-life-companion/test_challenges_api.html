@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Challenges API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .error {
+            color: #d32f2f;
+            background-color: #ffebee;
+        }
+        .success {
+            color: #388e3c;
+            background-color: #e8f5e9;
+        }
+        .status-line {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Challenges API</h1>
+        
+        <div class="form-group">
+            <label>API URL:</label>
+            <input 
+                type="text" 
+                id="apiUrl" 
+                value="http://localhost:8000/api/v1"
+                style="width: 100%; padding: 10px;"
+            >
+        </div>
+
+        <div class="form-group">
+            <label>Auth Token (from localStorage):</label>
+            <input 
+                type="text" 
+                id="authToken" 
+                placeholder="Paste your access_token here"
+                style="width: 100%; padding: 10px;"
+            >
+            <small>Or leave empty to fetch from localStorage</small>
+        </div>
+
+        <div>
+            <button onclick="testGetChallenges()">1. Get All Challenges</button>
+            <button onclick="testGetUserChallenges()">2. Get User Challenges</button>
+            <button onclick="clearResponse()">Clear</button>
+        </div>
+
+        <div id="response" class="response" style="display: none;"></div>
+    </div>
+
+    <script>
+        function getAuthToken() {
+            let token = document.getElementById('authToken').value;
+            if (token) return token;
+            
+            // Try to get from localStorage
+            token = localStorage.getItem('access_token');
+            if (!token) {
+                showResponse('ERROR: No auth token found. Please login first or paste a token above.', 'error');
+                return null;
+            }
+            return token;
+        }
+
+        function showResponse(content, type = 'info') {
+            const responseDiv = document.getElementById('response');
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response ' + type;
+            responseDiv.textContent = content;
+        }
+
+        function clearResponse() {
+            document.getElementById('response').style.display = 'none';
+        }
+
+        async function testGetChallenges() {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const apiUrl = document.getElementById('apiUrl').value;
+            
+            try {
+                showResponse('Loading...', 'info');
+                
+                const response = await fetch(`${apiUrl}/challenges`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const status = response.status;
+                const data = await response.json();
+
+                let display = `Status: ${status} ${response.statusText}\n\n`;
+                
+                if (!response.ok) {
+                    display += `ERROR: ${JSON.stringify(data, null, 2)}`;
+                    showResponse(display, 'error');
+                } else {
+                    display += `SUCCESS: Retrieved ${data.length} challenges\n\n`;
+                    display += JSON.stringify(data, null, 2);
+                    showResponse(display, 'success');
+                }
+            } catch (error) {
+                showResponse(`ERROR: ${error.message}\n\nMake sure:\n1. Backend is running\n2. API URL is correct\n3. You are logged in`, 'error');
+            }
+        }
+
+        async function testGetUserChallenges() {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const apiUrl = document.getElementById('apiUrl').value;
+            
+            try {
+                showResponse('Loading...', 'info');
+                
+                const response = await fetch(`${apiUrl}/challenges/progress`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const status = response.status;
+                const data = await response.json();
+
+                let display = `Status: ${status} ${response.statusText}\n\n`;
+                
+                if (!response.ok) {
+                    display += `ERROR: ${JSON.stringify(data, null, 2)}`;
+                    showResponse(display, 'error');
+                } else {
+                    display += `SUCCESS: Retrieved ${data.length} user challenges\n\n`;
+                    display += JSON.stringify(data, null, 2);
+                    showResponse(display, 'success');
+                }
+            } catch (error) {
+                showResponse(`ERROR: ${error.message}\n\nMake sure:\n1. Backend is running\n2. API URL is correct\n3. You are logged in`, 'error');
+            }
+        }
+
+        // Try to auto-fill token on page load
+        window.addEventListener('load', function() {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                document.getElementById('authToken').placeholder = '✓ Token found in localStorage';
+            }
+        });
+    </script>
+</body>
+</html>

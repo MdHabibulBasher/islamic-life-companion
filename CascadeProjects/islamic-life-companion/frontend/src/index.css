@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles - use actual CSS values, not @apply with custom colors */
+@layer base {
+  body {
+    background: linear-gradient(135deg, #F8F9F5 0%, #e5e7eb 50%, #f1f5f2 100%);
+    color: #084D27;
+    min-height: 100vh;
+  }
+}
+
+/* Custom utility classes for the Deep Green + Off White + Gold premium theme */
+@layer utilities {
+  .card-soft {
+    @apply bg-gradient-to-br from-off-white-50 to-off-white-100 rounded-3xl shadow-soft border border-grey-200;
+  }
+  
+  .btn-primary-green {
+    @apply bg-primary-green-500 text-white px-5 py-3 rounded-2xl font-semibold shadow-soft 
+           hover:shadow-soft-lg hover:bg-primary-green-600 transition-all duration-300;
+  }
+  
+  .btn-dark-green {
+    @apply bg-dark-green-500 text-white px-5 py-3 rounded-2xl font-semibold shadow-soft 
+           hover:shadow-soft-lg hover:bg-dark-green-600 transition-all duration-300;
+  }
+  
+  .btn-gold {
+    @apply bg-gradient-gold text-white px-5 py-3 rounded-2xl font-semibold shadow-premium 
+           hover:shadow-soft-lg hover:scale-105 transition-all duration-300;
+  }
+  
+  .gradient-primary-green {
+    background: linear-gradient(135deg, #0F7A3D 0%, #059669 100%);
+  }
+  
+  .gradient-dark-green {
+    background: linear-gradient(135deg, #084D27 0%, #166534 100%);
+  }
+  
+  .gradient-off-white {
+    background: linear-gradient(135deg, #F8F9F5 0%, #f1f5f2 100%);
+  }
+  
+  .gradient-gold {
+    background: linear-gradient(135deg, #D4AF37 0%, #d97706 100%);
+  }
+  
+  .gradient-luxury {
+    background: linear-gradient(135deg, #0F7A3D 0%, #D4AF37 100%);
+  }
+}
