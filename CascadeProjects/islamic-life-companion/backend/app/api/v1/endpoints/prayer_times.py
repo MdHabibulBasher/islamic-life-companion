@@ -277,3 +277,176 @@ def get_islamic_date(
     except Exception as e:
         print(f"Error processing Islamic date conversion: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/date/{target_date}")
+def get_prayer_times_by_date(
+    target_date: str,
+    city: Optional[str] = None,
+    country: Optional[str] = None,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get prayer times for a specific date"""
+    try:
+        if latitude and longitude:
+            url = f"{ALADHAN_API_BASE}/timings/{target_date}"
+            params = {
+                "latitude": latitude,
+                "longitude": longitude,
+                "method": 2
+            }
+        else:
+            city_name = city or "Cairo"
+            country_name = country or "Egypt"
+            url = f"{ALADHAN_API_BASE}/timingsByCity/{target_date}"
+            params = {
+                "city": city_name,
+                "country": country_name,
+                "method": 2
+            }
+        
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get("code") != 200:
+            raise HTTPException(status_code=500, detail="Failed to fetch prayer times")
+        
+        timings = data.get("data", {}).get("timings", {})
+        date_info = data.get("data", {}).get("date", {})
+        
+        return {
+            "date": target_date,
+            "hijri_date": date_info.get("hijri", {}).get("date", ""),
+            "prayers": {
+                "fajr": timings.get("Fajr", ""),
+                "sunrise": timings.get("Sunrise", ""),
+                "dhuhr": timings.get("Dhuhr", ""),
+                "asr": timings.get("Asr", ""),
+                "sunset": timings.get("Sunset", ""),
+                "maghrib": timings.get("Maghrib", ""),
+                "isha": timings.get("Isha", ""),
+                "imsak": timings.get("Imsak", "")
+            },
+            "location": f"{city or 'Cairo'}, {country or 'Egypt'}"
+        }
+    
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching prayer times: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch prayer times")
+    except Exception as e:
+        print(f"Error processing prayer times: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/location")
+def get_prayer_times_by_location(
+    latitude: float,
+    longitude: float,
+    date_str: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get prayer times by coordinates (latitude, longitude)"""
+    try:
+        prayer_date = date_str or date.today().isoformat()
+        
+        url = f"{ALADHAN_API_BASE}/timings/{prayer_date}"
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "method": 2
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get("code") != 200:
+            raise HTTPException(status_code=500, detail="Failed to fetch prayer times")
+        
+        timings = data.get("data", {}).get("timings", {})
+        date_info = data.get("data", {}).get("date", {})
+        
+        return {
+            "date": prayer_date,
+            "hijri_date": date_info.get("hijri", {}).get("date", ""),
+            "prayers": {
+                "fajr": timings.get("Fajr", ""),
+                "sunrise": timings.get("Sunrise", ""),
+                "dhuhr": timings.get("Dhuhr", ""),
+                "asr": timings.get("Asr", ""),
+                "sunset": timings.get("Sunset", ""),
+                "maghrib": timings.get("Maghrib", ""),
+                "isha": timings.get("Isha", ""),
+                "imsak": timings.get("Imsak", "")
+            },
+            "latitude": latitude,
+            "longitude": longitude
+        }
+    
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching prayer times: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch prayer times")
+    except Exception as e:
+        print(f"Error processing prayer times: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/city")
+def get_prayer_times_by_city(
+    city: str,
+    country: str,
+    date_str: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get prayer times by city name"""
+    try:
+        prayer_date = date_str or date.today().isoformat()
+        
+        url = f"{ALADHAN_API_BASE}/timingsByCity/{prayer_date}"
+        params = {
+            "city": city,
+            "country": country,
+            "method": 2
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get("code") != 200:
+            raise HTTPException(status_code=500, detail="Failed to fetch prayer times")
+        
+        timings = data.get("data", {}).get("timings", {})
+        date_info = data.get("data", {}).get("date", {})
+        
+        return {
+            "date": prayer_date,
+            "hijri_date": date_info.get("hijri", {}).get("date", ""),
+            "prayers": {
+                "fajr": timings.get("Fajr", ""),
+                "sunrise": timings.get("Sunrise", ""),
+                "dhuhr": timings.get("Dhuhr", ""),
+                "asr": timings.get("Asr", ""),
+                "sunset": timings.get("Sunset", ""),
+                "maghrib": timings.get("Maghrib", ""),
+                "isha": timings.get("Isha", ""),
+                "imsak": timings.get("Imsak", "")
+            },
+            "location": f"{city}, {country}"
+        }
+    
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching prayer times: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch prayer times")
+    except Exception as e:
+        print(f"Error processing prayer times: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
