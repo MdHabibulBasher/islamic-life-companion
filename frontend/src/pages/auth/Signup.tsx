@@ -1,11 +1,17 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Mail, Lock, User } from 'lucide-react'
-import { Input, Button } from '../../components/Form'
+import { Mail, Lock, User, BookOpen, Calendar, Target, Compass } from 'lucide-react'
+import { Input } from '../../components/Form'
 import { LoadingSpinner } from '../../components/Loading'
 import { useToast } from '../../components/Toast'
 import { useAuthStore } from '../../store/authStore'
 import { api } from '../../services/api'
+import {
+  GoldDivider,
+  CrescentStar,
+  Star8,
+  OrnateCard,
+} from '../../components/IslamicOrnamentBG'
 
 export const Signup = () => {
   const navigate = useNavigate()
@@ -22,15 +28,12 @@ export const Signup = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }))
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }))
   }
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
-    
     if (!formData.full_name) newErrors.full_name = 'Name is required'
     if (!formData.email) newErrors.email = 'Email is required'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format'
@@ -39,10 +42,8 @@ export const Signup = () => {
     else if (!/[A-Z]/.test(formData.password)) newErrors.password = 'Password must contain an uppercase letter'
     else if (!/[0-9]/.test(formData.password)) newErrors.password = 'Password must contain a number'
     else if (!/[!@#$%^&*]/.test(formData.password)) newErrors.password = 'Password must contain a special character'
-    
     if (!formData.confirmPassword) newErrors.confirmPassword = 'Please confirm your password'
     else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match'
-    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -50,7 +51,6 @@ export const Signup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
-
     setLoading(true)
     try {
       const response = await api.post('/auth/signup', {
@@ -58,14 +58,10 @@ export const Signup = () => {
         password: formData.password,
         full_name: formData.full_name,
       })
-
       const { access_token, refresh_token, user } = response.data
-
-      // Store tokens and user info
       setTokens(access_token, refresh_token)
       setUser(user)
       setAuthenticated(true)
-
       success('Account created successfully! Welcome to Islamic Life.')
       navigate('/')
     } catch (err: any) {
@@ -77,18 +73,103 @@ export const Signup = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-block text-5xl mb-4">🕌</div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Islamic Life</h1>
-          <p className="text-gray-600 dark:text-gray-400">Begin your spiritual journey</p>
-        </div>
+    <div className="min-h-screen w-full flex items-center justify-center px-4 py-8 sm:py-12 relative">
+      {/* Top radial gold glow — matches Prayer Tracker hero */}
+      <div
+        className="absolute inset-x-0 top-0 h-72 opacity-50 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(ellipse at top, var(--gold-glow) 0%, transparent 70%)',
+        }}
+      />
+      <div className="relative z-10 w-full max-w-md">
+        {/* ============================ HERO ============================ */}
+        <OrnateCard
+          variant="dark"
+          topBar
+          corners="all"
+          className="!p-6 sm:!p-8 relative overflow-hidden mb-6"
+        >
+          {/* Decorative gold blur accents — same as Prayer Tracker */}
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div
+              className="absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl"
+              style={{
+                background:
+                  'radial-gradient(circle, rgba(240,199,94,0.18) 0%, transparent 70%)',
+              }}
+            />
+            <div
+              className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full blur-3xl"
+              style={{
+                background:
+                  'radial-gradient(circle, rgba(212,160,23,0.12) 0%, transparent 70%)',
+              }}
+            />
+            <div
+              className="absolute top-6 bottom-6 left-0 w-px"
+              style={{
+                background:
+                  'linear-gradient(180deg, transparent 0%, var(--gold-mid) 50%, transparent 100%)',
+                opacity: 0.6,
+              }}
+            />
+          </div>
 
-        {/* Signup Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Create Account</h2>
+          <div className="relative z-10 text-center">
+            {/* Eyebrow */}
+            <div
+              className="flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.2em] font-bold mb-3"
+              style={{ color: 'var(--gold-glow)' }}
+            >
+              <Star8 size={14} />
+              <span>Begin a new journey</span>
+              <Star8 size={14} />
+            </div>
+
+            {/* Brand mark */}
+            <div
+              className="flex items-center justify-center gap-3 mb-3"
+              style={{ color: 'var(--gold-mid)' }}
+            >
+              <CrescentStar size={36} />
+            </div>
+
+            <h1
+              className="text-3xl sm:text-4xl font-bold tracking-tight mb-1"
+              style={{
+                color: 'var(--manuscript-cream)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              Islamic Life
+            </h1>
+            <p
+              className="text-sm sm:text-base max-w-md mx-auto"
+              style={{ color: 'var(--manuscript-cream)', opacity: 0.82 }}
+            >
+              Begin your spiritual journey — habits, prayer times, qada, and Quran in one illuminated space.
+            </p>
+          </div>
+        </OrnateCard>
+
+        {/* Manuscript form card — uses shared OrnateCard like the rest of the site */}
+        <OrnateCard variant="warm" topBar corners="all" className="!p-6 sm:!p-8">
+          <div className="flex items-center justify-center mb-3 text-[var(--gold-mid)]">
+            <CrescentStar size={28} />
+          </div>
+          <h2
+            className="text-2xl font-bold mb-1 text-center"
+            style={{
+              color: 'var(--emerald-deep)',
+              fontFamily: 'Georgia, "Times New Roman", serif',
+            }}
+          >
+            Create Account
+          </h2>
+          <div className="mb-5 mt-2">
+            <GoldDivider />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
@@ -99,10 +180,9 @@ export const Signup = () => {
               onChange={handleChange}
               error={errors.full_name}
               icon={<User size={20} />}
-              placeholder="John Doe"
+              placeholder="Your name"
               disabled={loading}
             />
-
             <Input
               label="Email"
               name="email"
@@ -114,7 +194,6 @@ export const Signup = () => {
               placeholder="you@example.com"
               disabled={loading}
             />
-
             <Input
               label="Password"
               name="password"
@@ -127,7 +206,6 @@ export const Signup = () => {
               helperText="At least 8 characters, 1 uppercase, 1 number, 1 special character"
               disabled={loading}
             />
-
             <Input
               label="Confirm Password"
               name="confirmPassword"
@@ -139,47 +217,50 @@ export const Signup = () => {
               placeholder="••••••••"
               disabled={loading}
             />
-
-            <Button
+            <button
               type="submit"
-              variant="primary"
-              size="md"
               disabled={loading}
-              className="w-full mt-6"
+              className="btn-gold-leaf w-full mt-6 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? <LoadingSpinner size="sm" /> : 'Create Account'}
-            </Button>
+              {loading ? <LoadingSpinner size="sm" /> : 'Begin the Journey'}
+            </button>
           </form>
 
-          {/* Login Link */}
-          <p className="text-center text-gray-600 dark:text-gray-400 mt-6">
+          <p className="text-center mt-6 text-sm" style={{ color: 'var(--gold-deep)' }}>
             Already have an account?{' '}
-            <Link to="/login" className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium">
+            <Link to="/login" className="font-semibold" style={{ color: 'var(--emerald-deep)' }}>
               Login
             </Link>
           </p>
-        </div>
+        </OrnateCard>
 
-        {/* Benefits */}
-        <div className="grid grid-cols-2 gap-4 mt-8 text-sm">
-          <div className="text-center">
-            <div className="text-2xl mb-2">🎯</div>
-            <p className="text-gray-600 dark:text-gray-400 text-xs">Goal Tracking</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl mb-2">🌙</div>
-            <p className="text-gray-600 dark:text-gray-400 text-xs">Prayer Times</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl mb-2">📖</div>
-            <p className="text-gray-600 dark:text-gray-400 text-xs">Quran Reading</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl mb-2">📅</div>
-            <p className="text-gray-600 dark:text-gray-400 text-xs">Islamic Calendar</p>
-          </div>
+        {/* Benefits grid */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-6">
+          <FeaturePill icon={<Target size={20} style={{ color: 'var(--gold-mid)' }} />} label="Goal Tracking" />
+          <FeaturePill icon={<Compass size={20} style={{ color: 'var(--gold-mid)' }} />} label="Prayer Times" />
+          <FeaturePill icon={<BookOpen size={20} style={{ color: 'var(--gold-mid)' }} />} label="Quran Reading" />
+          <FeaturePill icon={<Calendar size={20} style={{ color: 'var(--gold-mid)' }} />} label="Islamic Calendar" />
         </div>
       </div>
     </div>
   )
 }
+
+const FeaturePill: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
+  <div
+    className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl text-center"
+    style={{
+      background:
+        'linear-gradient(180deg, var(--manuscript-cream) 0%, var(--manuscript-cream-2) 100%)',
+      border: '1px solid var(--gold-mid)',
+    }}
+  >
+    {icon}
+    <span
+      className="text-[10px] uppercase tracking-[0.15em] font-semibold"
+      style={{ color: 'var(--emerald-deep)' }}
+    >
+      {label}
+    </span>
+  </div>
+)

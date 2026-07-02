@@ -2,53 +2,614 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles - use actual CSS values, not @apply with custom colors */
+/* ============================================================================
+   THEME SYSTEM
+   ============================================================================
+   Every theme defines the same 14 semantic CSS variables so the rest of the
+   app can use the same Tailwind classes (`bg-brand-primary`, `text-ink-body`,
+   `border-edge-soft`) and just switch the `data-theme` attribute on <html>.
+
+   Four themes ship today:
+
+     teal-amber   — calm Islamic feel (default; was the prior ihadis palette)
+     purple-teal  — spiritual, meditative
+     green-coral  — green = completed, coral = missed
+     blue-amber   — premium dark-friendly look
+   ============================================================================ */
+
+:root,
+[data-theme="teal-amber"] {
+  --brand-primary:        #2f6157;  /* forest teal */
+  --brand-primary-soft:   #3d7b6f;
+  --brand-primary-fill:   #417e38;  /* ihadis leaf */
+  --brand-light:          #e1f5f5;  /* teal-50 (active highlight) */
+  --brand-mid:            #d9ebd9;  /* sage 100 */
+  --brand-deep:           #1e241e;  /* forest ink */
+
+  --accent:               #f59e0b;  /* amber */
+  --accent-soft:          #fef3c7;
+
+  --completed:            #2f6157;
+  --completed-fill:        #417e38;
+  --completed-soft:        #eef5ee;
+
+  --missed:               #e44244;
+  --missed-soft:          #fee2e2;
+
+  --surface-page:         #f1efe8;  /* gray-50 (warm neutral page) */
+  --surface-card:         #ffffff;  /* pure white — lifts cards off the page */
+  --surface-card-strong:  #f7f3e8;  /* parchment-100 */
+  --surface-tab:          #f7f3e8;
+  --surface-tab-active:   #ffffff;
+  --surface-hover:        #e1f5f5;  /* teal-50 hover */
+
+  --edge-soft:            #efe8dd;  /* parchment-200 */
+  --edge-strong:          #d7d6be;
+  --edge-focus:           #417e38;
+
+  --text-body:            #161615;
+  --text-strong:          #0f1419;
+  --text-muted:           #5b6063;
+  --text-inverse:         #ffffff;
+
+  /* ---- Deep background (used for the page-level wash) ----
+     A deep, parchment-tinted hue inspired by classical Islamic
+     manuscript grounds. The ornament (gold lanterns + mihrab)
+     reads clearly on top of this colour. */
+  --surface-deep:         #0d2e29;  /* deep forest-teal */
+  --surface-deep-2:       #163a32;  /* one stop lighter */
+  --surface-deep-edge:    #08211d;  /* deeper edge for vignette */
+  --ornament-ink:         #d4a017;  /* gold for lantern strokes */
+  --ornament-ink-soft:    #f0c75e;  /* lighter gold for highlights */
+
+  /* ---- Manuscript palette (royal Mughal / Ottoman) ----
+     The redesign leans heavily into a richly-ornate illuminated-
+     manuscript aesthetic — emerald, gold, and parchment cream.
+     All ornaments + frames bind to these via `currentColor` / classes. */
+  --manuscript-cream:     #fbf3df;  /* warm parchment, page-level cream */
+  --manuscript-cream-2:   #f5e8c2;  /* deeper cream for cards on cream */
+  --manuscript-shadow:    #d9c79a;  /* edge / shadow tone */
+  --manuscript-rule:      #b69960;  /* hairline gold rule colour */
+  --gold-deep:            #9a6b0e;  /* deep antique gold (outlines) */
+  --gold-mid:             #d4a017;  /* primary gold (strokes) */
+  --gold-light:           #f0c75e;  /* highlight gold */
+  --gold-glow:            #fde68a;  /* luminous gold (accents) */
+  --emerald-deep:         #064e3b;  /* deep emerald (deep shadow) */
+  --emerald:              #047857;  /* primary emerald */
+  --emerald-soft:         #d1fae5;  /* emerald wash */
+  --crimson:              #9f1239;  /* deep crimson (rub el hizb etc.) */
+  --lapiz:                #1e3a8a;  /* lapis lazuli blue (illumination) */
+}
+
+[data-theme="purple-teal"] {
+  --brand-primary:        #6d28d9;  /* purple-700 */
+  --brand-primary-soft:   #8b5cf6;
+  --brand-primary-fill:   #7c3aed;
+  --brand-light:          #cecbf6;  /* purple-100 (active highlight) */
+  --brand-mid:            #ddd6fe;  /* purple-200 */
+  --brand-deep:           #2e1065;
+
+  --accent:               #0d9488;  /* teal accent */
+  --accent-soft:          #ccfbf1;
+
+  --completed:            #0d9488;
+  --completed-fill:        #14b8a6;
+  --completed-soft:        #ccfbf1;
+
+  --missed:               #e11d48;
+  --missed-soft:          #ffe4e6;
+
+  --surface-page:         #eeedfe;  /* purple-50 (colored page bg works here) */
+  --surface-card:         #ffffff;  /* pure white — lifts cards off the page */
+  --surface-card-strong:  #f3e8ff;
+  --surface-tab:          #f3e8ff;
+  --surface-tab-active:   #ffffff;
+  --surface-hover:        #cecbf6;  /* purple-100 hover */
+
+  --edge-soft:            #e9d5ff;
+  --edge-strong:          #c4b5fd;
+  --edge-focus:           #7c3aed;
+
+  --text-body:            #1e1b4b;
+  --text-strong:          #0f0a30;
+  --text-muted:           #6b7280;
+  --text-inverse:         #ffffff;
+
+  /* Deep variant — deep indigo that matches the purple/teal theme. */
+  --surface-deep:         #1a1245;
+  --surface-deep-2:       #261a5c;
+  --surface-deep-edge:    #0f0a30;
+  --ornament-ink:         #e6b94d;
+  --ornament-ink-soft:    #f5d27a;
+
+  /* Manuscript palette — warm parchment + gold + indigo undertones. */
+  --manuscript-cream:     #f5eef0;
+  --manuscript-cream-2:   #ebd9e2;
+  --manuscript-shadow:    #c9b3c4;
+  --manuscript-rule:      #a78bb6;
+  --gold-deep:            #7c5a17;
+  --gold-mid:             #e6b94d;
+  --gold-light:           #f5d27a;
+  --gold-glow:            #fde0a3;
+  --emerald-deep:         #053b2e;
+  --emerald:              #0d6e54;
+  --emerald-soft:         #d1fae5;
+  --crimson:              #9f1239;
+  --lapiz:                #312e81;
+}
+
+[data-theme="green-coral"] {
+  --brand-primary:        #15803d;  /* green-700 */
+  --brand-primary-soft:   #22c55e;
+  --brand-primary-fill:   #16a34a;
+  --brand-light:          #eaf3de;  /* green-50 (active highlight) */
+  --brand-mid:            #dcfce7;
+  --brand-deep:           #14532d;
+
+  --accent:               #fb7185;  /* coral-400 */
+  --accent-soft:          #ffe4e6;
+
+  --completed:            #16a34a;
+  --completed-fill:        #22c55e;
+  --completed-soft:        #dcfce7;
+
+  --missed:               #fb7185;
+  --missed-soft:          #ffe4e6;
+
+  --surface-page:         #f1efe8;  /* gray-50 (warm neutral page) */
+  --surface-card:         #ffffff;  /* pure white — lifts cards off the page */
+  --surface-card-strong:  #ecfccb;
+  --surface-tab:          #ecfccb;
+  --surface-tab-active:   #ffffff;
+  --surface-hover:        #eaf3de;  /* green-50 hover */
+
+  --edge-soft:            #bbf7d0;
+  --edge-strong:          #86efac;
+  --edge-focus:           #16a34a;
+
+  --text-body:            #14532d;
+  --text-strong:          #052e16;
+  --text-muted:           #4b5563;
+  --text-inverse:         #ffffff;
+
+  /* Deep variant — deep emerald green (matches the green-coral theme). */
+  --surface-deep:         #07321f;
+  --surface-deep-2:       #0d4a2c;
+  --surface-deep-edge:    #04200f;
+  --ornament-ink:         #d4a017;
+  --ornament-ink-soft:    #f0c75e;
+
+  /* Manuscript palette — emerald-led, gold leaf. */
+  --manuscript-cream:     #fbf3df;
+  --manuscript-cream-2:   #f0e6c0;
+  --manuscript-shadow:    #c9b88c;
+  --manuscript-rule:      #a88b54;
+  --gold-deep:            #8a5d12;
+  --gold-mid:             #d4a017;
+  --gold-light:           #f0c75e;
+  --gold-glow:            #fde68a;
+  --emerald-deep:         #052e16;
+  --emerald:              #15803d;
+  --emerald-soft:         #dcfce7;
+  --crimson:              #be123c;
+  --lapiz:                #1e3a8a;
+}
+
+[data-theme="blue-amber"] {
+  --brand-primary:        #1d4ed8;  /* blue-700 */
+  --brand-primary-soft:   #3b82f6;
+  --brand-primary-fill:   #2563eb;
+  --brand-light:          #e6f1fb;  /* blue-50 (active highlight) */
+  --brand-mid:            #dbeafe;
+  --brand-deep:           #172554;
+
+  --accent:               #f59e0b;
+  --accent-soft:          #fef3c7;
+
+  --completed:            #1d4ed8;
+  --completed-fill:        #2563eb;
+  --completed-soft:        #dbeafe;
+
+  --missed:               #dc2626;
+  --missed-soft:          #fee2e2;
+
+  --surface-page:         #f1efe8;  /* gray-50 (warm neutral page) */
+  --surface-card:         #ffffff;  /* pure white — lifts cards off the page */
+  --surface-card-strong:  #f1f5f9;
+  --surface-tab:          #e2e8f0;
+  --surface-tab-active:   #ffffff;
+  --surface-hover:        #e6f1fb;  /* blue-50 hover */
+
+
+  /* Manuscript palette — lapis-led, gold leaf. */
+  --manuscript-cream:     #f5efe0;
+  --manuscript-cream-2:   #e8dfca;
+  --manuscript-shadow:    #bfae8b;
+  --manuscript-rule:      #9c8554;
+  --gold-deep:            #8a5d12;
+  --gold-mid:             #d4a017;
+  --gold-light:           #f0c75e;
+  --gold-glow:            #fde68a;
+  --emerald-deep:         #064e3b;
+  --emerald:              #047857;
+  --emerald-soft:         #d1fae5;
+  --crimson:              #9f1239;
+  --lapiz:                #172554;
+  --edge-soft:            #e2e8f0;
+  --edge-strong:          #cbd5e1;
+  --edge-focus:           #1d4ed8;
+
+  --text-body:            #0f172a;
+  --text-strong:          #020617;
+  --text-muted:           #475569;
+  --text-inverse:         #ffffff;
+
+  /* Deep variant — deep midnight navy. */
+  --surface-deep:         #061027;
+  --surface-deep-2:       #0c1c3e;
+  --surface-deep-edge:    #03081a;
+  --ornament-ink:         #d4a017;
+  --ornament-ink-soft:    #f5c463;
+}
+
+/* Smooth cross-theme transitions. */
+html, body {
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
 @layer base {
   body {
-    background: linear-gradient(135deg, #F8F9F5 0%, #e5e7eb 50%, #f1f5f2 100%);
-    color: #084D27;
+    /* Royal-manuscript background: deep emerald centre fading to a
+       darker edge, with a faint parchment-cream wash on top so the gold
+       ornament strokes and lanterns feel like illuminated ink. */
+    background:
+      radial-gradient(
+        ellipse 80% 70% at 50% 35%,
+        var(--surface-deep-2) 0%,
+        var(--surface-deep) 55%,
+        var(--surface-deep-edge) 100%
+      ),
+      var(--manuscript-cream);
+    background-attachment: fixed;
+    color: var(--text-body);
     min-height: 100vh;
+    transition: background 350ms ease;
   }
 }
 
-/* Custom utility classes for the Deep Green + Off White + Gold premium theme */
+/* ============================================================================
+   THEME-AWARE GRADIENT HERO
+   The hero on every page uses these tokens. Switching the data-theme
+   attribute on <html> repaints the gradient automatically.
+   ============================================================================ */
+
 @layer utilities {
+  .hero-gradient {
+    background-image: linear-gradient(
+      135deg,
+      var(--brand-deep) 0%,
+      var(--brand-primary) 55%,
+      var(--brand-primary-fill) 100%
+    );
+  }
+  .hero-shadow {
+    box-shadow: 0 8px 30px -12px var(--brand-primary);
+  }
+  .ring-brand {
+    --tw-ring-color: var(--brand-primary);
+  }
+  /* Streak chip used on the Prayer Tracker. */
+  .streak-gradient {
+    background-image: linear-gradient(
+      135deg,
+      var(--brand-primary-soft) 0%,
+      var(--brand-primary) 50%,
+      var(--brand-deep) 100%
+    );
+  }
+  /* Prayer-row done state. */
+  .done-gradient {
+    background-image: linear-gradient(
+      90deg,
+      var(--brand-light) 0%,
+      var(--surface-card) 100%
+    );
+  }
+  /* ============================================================================
+     GLOSSY FINISH
+     The "wet-look" surface used on the marked section's cards. Adds:
+       • A pure-white base (always #FFFFFF so cards pop off the page bg)
+       • A soft inner highlight along the top edge (the "gloss")
+       • A subtle 1px edge + diffuse outer shadow for depth
+     Use alongside `bg-surface-card` + a 1px `border-edge-soft` for the
+     full effect, or with `bg-gradient-to-br` for a tinted gloss.
+     ============================================================================ */
+  .glossy-card {
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0) 38%
+    ), linear-gradient(
+      135deg,
+      var(--surface-card) 0%,
+      var(--surface-card) 60%,
+      var(--brand-light) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(15, 23, 42, 0.04),
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 8px 24px -16px rgba(15, 23, 42, 0.18);
+  }
+  /* Glossy finish with a stronger tinted bleed toward the primary color
+     — used on Qada cards so they rhyme with the prayer-reference row. */
+  .glossy-card-tinted {
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0) 38%
+    ), linear-gradient(
+      135deg,
+      var(--surface-card) 0%,
+      var(--brand-light) 60%,
+      var(--accent-soft) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(15, 23, 42, 0.04),
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 8px 24px -16px rgba(15, 23, 42, 0.18);
+  }
+  /* Custom utility classes for the Deep Green + Off White + Gold premium theme */
   .card-soft {
-    @apply bg-gradient-to-br from-off-white-50 to-off-white-100 rounded-3xl shadow-soft border border-grey-200;
+    @apply rounded-3xl shadow-soft border;
+    background: var(--surface-card);
+    border-color: var(--edge-soft);
   }
-  
+
   .btn-primary-green {
-    @apply bg-primary-green-500 text-white px-5 py-3 rounded-2xl font-semibold shadow-soft 
-           hover:shadow-soft-lg hover:bg-primary-green-600 transition-all duration-300;
+    @apply px-5 py-3 rounded-2xl font-semibold shadow-soft transition-all duration-300;
+    background: var(--brand-primary);
+    color: var(--text-inverse);
   }
-  
+  .btn-primary-green:hover {
+    background: var(--brand-primary-fill);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  }
+
   .btn-dark-green {
-    @apply bg-dark-green-500 text-white px-5 py-3 rounded-2xl font-semibold shadow-soft 
-           hover:shadow-soft-lg hover:bg-dark-green-600 transition-all duration-300;
+    @apply px-5 py-3 rounded-2xl font-semibold shadow-soft transition-all duration-300;
+    background: var(--brand-deep);
+    color: var(--text-inverse);
   }
-  
+
   .btn-gold {
-    @apply bg-gradient-gold text-white px-5 py-3 rounded-2xl font-semibold shadow-premium 
-           hover:shadow-soft-lg hover:scale-105 transition-all duration-300;
+    @apply px-5 py-3 rounded-2xl font-semibold shadow-premium transition-all duration-300;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+    color: var(--text-strong);
   }
-  
+  .btn-gold:hover {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    transform: scale(1.05);
+  }
+
   .gradient-primary-green {
-    background: linear-gradient(135deg, #0F7A3D 0%, #059669 100%);
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-fill) 100%);
   }
-  
   .gradient-dark-green {
-    background: linear-gradient(135deg, #084D27 0%, #166534 100%);
+    background: linear-gradient(135deg, var(--brand-deep) 0%, var(--brand-primary) 100%);
   }
-  
   .gradient-off-white {
-    background: linear-gradient(135deg, #F8F9F5 0%, #f1f5f2 100%);
+    background: linear-gradient(135deg, var(--surface-card-strong) 0%, var(--surface-page) 100%);
   }
-  
   .gradient-gold {
-    background: linear-gradient(135deg, #D4AF37 0%, #d97706 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
   }
-  
   .gradient-luxury {
-    background: linear-gradient(135deg, #0F7A3D 0%, #D4AF37 100%);
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--accent) 100%);
   }
+  .gradient-premium {
+    background: linear-gradient(135deg, var(--surface-card-strong) 0%, var(--edge-soft) 50%, var(--brand-primary) 100%);
+  }
+  .gradient-islamic {
+    background: linear-gradient(135deg, var(--brand-deep) 0%, var(--accent) 100%);
+  }
+  .gradient-emerald {
+    background: linear-gradient(135deg, var(--completed-soft) 0%, var(--brand-mid) 100%);
+  }
+  .gradient-purple {
+    background: linear-gradient(135deg, var(--surface-page) 0%, var(--brand-light) 100%);
+  }
+  .gradient-violet {
+    background: linear-gradient(135deg, var(--brand-light) 0%, var(--brand-mid) 100%);
+  }
+  .gradient-teal {
+    background: linear-gradient(135deg, var(--brand-light) 0%, var(--completed-soft) 100%);
+  }
+  .gradient-magic {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--brand-primary) 100%);
+  }
+  .gradient-sage {
+    background: linear-gradient(135deg, var(--surface-page) 0%, var(--surface-card-strong) 100%);
+  }
+  .gradient-mint {
+    background: linear-gradient(135deg, var(--surface-page) 0%, var(--completed-soft) 100%);
+  }
+  .gradient-coral {
+    background: linear-gradient(135deg, var(--surface-page) 0%, var(--missed-soft) 100%);
+  }
+
+  /* ==========================================================================
+     ROYAL MANUSCRIPT COMPONENTS — Phase 1 of the redesign.
+     These classes back the new <OrnateCard>, page banners, and divider
+     ornaments. Stroke colours come from the gold family so they tint
+     across themes automatically.
+     ========================================================================== */
+
+  /* Ornate card surface — bright parchment white with a hairline gold
+     border, soft inner shadow, and a subtle parchment tint that makes
+     white content sit warmly on top of the dark page. */
+  .card-ornate {
+    background:
+      linear-gradient(180deg, var(--surface-card) 0%, var(--manuscript-cream-2) 100%);
+    border: 1px solid var(--gold-mid);
+    border-radius: 1rem;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      inset 0 -1px 0 rgba(154, 107, 14, 0.08),
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 8px 24px -16px rgba(15, 23, 42, 0.25);
+    position: relative;
+    color: var(--text-strong);
+  }
+
+  /* A deeper cream variant for cards that need to feel "warmer" — e.g.
+     login/signup form panels, hero stat cards. */
+  .card-ornate-warm {
+    background:
+      linear-gradient(180deg, var(--manuscript-cream) 0%, var(--manuscript-cream-2) 100%);
+    border: 1px solid var(--gold-mid);
+    border-radius: 1rem;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 2px rgba(15, 23, 42, 0.06),
+      0 12px 32px -16px rgba(15, 23, 42, 0.3);
+    position: relative;
+    color: var(--text-strong);
+  }
+
+  /* Dark variant for hero banners that sit above the page bg. */
+  .card-ornate-dark {
+    background:
+      linear-gradient(135deg, var(--emerald-deep) 0%, var(--surface-deep-2) 100%);
+    border: 1px solid var(--gold-mid);
+    border-radius: 1rem;
+    color: var(--manuscript-cream);
+    box-shadow:
+      inset 0 1px 0 rgba(212, 160, 23, 0.18),
+      0 12px 32px -16px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Gold hairline divider — used between section blocks. Renders as a
+     thin gold line with a small centred diamond glyph (◆). */
+  .gold-rule {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--gold-mid);
+  }
+  .gold-rule::before,
+  .gold-rule::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--gold-mid) 50%,
+      transparent 100%
+    );
+  }
+
+  /* Pill with gold hairline — used for nav links, badges. */
+  .pill-gold {
+    border: 1px solid var(--gold-mid);
+    background:
+      linear-gradient(180deg, var(--manuscript-cream) 0%, var(--manuscript-cream-2) 100%);
+    color: var(--gold-deep);
+  }
+
+  /* Strong CTA — gold leaf button. */
+  .btn-gold-leaf {
+    background: linear-gradient(
+      135deg,
+      var(--gold-mid) 0%,
+      var(--gold-light) 45%,
+      var(--gold-glow) 100%
+    );
+    color: var(--emerald-deep);
+    border: 1px solid var(--gold-deep);
+    font-weight: 600;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      0 4px 12px -4px rgba(154, 107, 14, 0.5);
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+  .btn-gold-leaf:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.65),
+      0 8px 22px -6px rgba(154, 107, 14, 0.6);
+  }
+
+  /* Hero banner — deep emerald with gold leaf top accent. */
+  .hero-banner {
+    background:
+      linear-gradient(135deg, var(--emerald-deep) 0%, var(--surface-deep-2) 100%);
+    color: var(--manuscript-cream);
+    border: 1px solid var(--gold-mid);
+    border-radius: 1.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Section title in manuscript style — gold underline with diamond. */
+  .manuscript-title {
+    color: var(--manuscript-cream);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  }
+
+  /* Top accent bar — gold leaf gradient. */
+  .accent-bar-gold {
+    background: linear-gradient(
+      90deg,
+      var(--gold-deep) 0%,
+      var(--gold-mid) 25%,
+      var(--gold-light) 50%,
+      var(--gold-mid) 75%,
+      var(--gold-deep) 100%
+    );
+  }
+}
+
+/* ============================================================================
+   ISLAMIC ORNAMENT BACKGROUNDS
+   ----------------------------------------------------------------------------
+   The <IslamicOrnamentBG /> component renders an absolutely-positioned
+   <div> containing a real <svg> DOM element that paints a repeating
+   lantern (fanous) motif. Because the SVG is rendered (not used as a CSS
+   background-image), `currentColor` resolves correctly inside it — so
+   we theme the strokes by setting `color: var(--brand-primary)` on the
+   wrapper. Each theme gets its own lantern colour automatically.
+
+   Visibility is controlled by `opacity` on the wrapper. The wrapper is
+   z-index: 0 and `pointer-events: none` so it never blocks clicks.
+
+   Opacity per intensity preset:
+     • default — 0.28  (subtle wash behind every authenticated page)
+     • auth    — 0.38  + warm gradient overlay for login/signup
+     • top     — 0.30  single centred lantern behind a hero card
+
+   Seasonal overrides use `body[data-season="..."]` on <html>. Drop the
+   attribute from JS when Ramadan / Eid / Jumu'ah starts to repaint.
+   ============================================================================ */
+
+/* The lantern background pattern was removed per user request.
+   The body now paints a clean solid deep gradient (see body rules above),
+   and the <IslamicOrnamentBG /> component renders nothing visually but
+   remains in the tree so callers don't break. Kept as a single invisible
+   hook so future decoration can be re-introduced without touching every
+   page. */
+.islamic-bg {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+  display: none;
+}
+.islamic-bg > .islamic-pattern {
+  display: none;
 }

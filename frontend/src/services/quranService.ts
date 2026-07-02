@@ -4,7 +4,7 @@ export interface Surah {
   number: number;
   name: string;
   englishName: string;
-  englishNameTranslation: string;
+  englishNameTranslation?: string;
   numberOfAyahs: number;
   revelationType: string;
 }
@@ -13,12 +13,19 @@ export interface Ayah {
   number: number;
   text: string;
   numberInSurah: number;
-  juz: number;
-  manzil: number;
-  page: number;
-  ruku: number;
-  hizbQuar: number;
-  sajda: boolean;
+  juz?: number;
+  page?: number;
+  translation?: string | null;
+  bengali?: string | null;
+}
+
+export interface SurahWithAyahs {
+  surah_number: number;
+  surah_name: string;
+  english_name: string;
+  revelation_type: string;
+  number_of_ayahs: number;
+  ayahs: Ayah[];
 }
 
 export interface QuranReadingSession {
@@ -57,15 +64,10 @@ class QuranService {
     }
   }
 
-  // Fetch a specific Surah's Ayahs
-  async getSurahAyahs(surahNumber: number): Promise<Ayah[]> {
-    try {
-      const response = await api.get(`/quran/surahs/${surahNumber}/ayahs`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching Surah Ayahs:', error);
-      throw error;
-    }
+  // Fetch a specific Surah's Ayahs (returns the full payload incl. EN + BN translations)
+  async getSurahAyahs(surahNumber: number): Promise<SurahWithAyahs> {
+    const response = await api.get(`/quran/surahs/${surahNumber}/ayahs`)
+    return response.data
   }
 
   // Fetch a specific Ayah

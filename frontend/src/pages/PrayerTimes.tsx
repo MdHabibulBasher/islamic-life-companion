@@ -1,246 +1,833 @@
-﻿import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Clock, Moon, Sun, MapPin, RefreshCw, Loader } from 'lucide-react'
-import { LoadingSpinner } from '../components/Loading'
-import { Button } from '../components/Form'
+import {
+  Moon, Sun, MapPin, RefreshCw, Search, X, AlertCircle, Loader, Compass,
+} from 'lucide-react'
 import { prayerTimesService } from '../services/prayerTimesService'
+import { useToast } from '../components/Toast'
+import { format12Hour } from '../utils'
+import {
+  OrnateCard,
+  PageHeader,
+  ManuscriptSection,
+  GoldDivider,
+  CrescentStar,
+} from '../components/IslamicOrnamentBG'
 
 interface Prayer {
   name: string
   time: string
   icon: React.ReactNode
-  color: string
+  accent: string // CSS gradient for the icon circle
+}
+
+interface Coords {
+  latitude: number
+  longitude: number
+  timezone?: string
+}
+
+interface City {
+  city: string
+  country: string
+}
+
+// Curated list of cities most likely to be searched. The backend uses
+// Aladhan's address-info endpoint to resolve any of these to coordinates.
+// `coords` are bundled here so the UI can also POST /user/location and let
+// the backend auto-seed the local Hijri offset (e.g. Dhaka → −1 day).
+const POPULAR_CITIES: Array<City & { coords: Coords }> = [
+  { city: 'Dhaka',        country: 'Bangladesh',         coords: { latitude: 23.8103, longitude: 90.4125, timezone: 'Asia/Dhaka' } },
+  { city: 'Cairo',        country: 'Egypt',              coords: { latitude: 30.0444, longitude: 31.2357, timezone: 'Africa/Cairo' } },
+  { city: 'Riyadh',       country: 'Saudi Arabia',       coords: { latitude: 24.7136, longitude: 46.6753, timezone: 'Asia/Riyadh' } },
+  { city: 'Mecca',        country: 'Saudi Arabia',       coords: { latitude: 21.3891, longitude: 39.8579, timezone: 'Asia/Riyadh' } },
+  { city: 'Medina',       country: 'Saudi Arabia',       coords: { latitude: 24.4686, longitude: 39.6142, timezone: 'Asia/Riyadh' } },
+  { city: 'Dubai',        country: 'United Arab Emirates', coords: { latitude: 25.2048, longitude: 55.2708, timezone: 'Asia/Dubai' } },
+  { city: 'Istanbul',     country: 'Turkey',             coords: { latitude: 41.0082, longitude: 28.9784, timezone: 'Europe/Istanbul' } },
+  { city: 'Karachi',      country: 'Pakistan',           coords: { latitude: 24.8607, longitude: 67.0011, timezone: 'Asia/Karachi' } },
+  { city: 'Lahore',       country: 'Pakistan',           coords: { latitude: 31.5497, longitude: 74.3436, timezone: 'Asia/Karachi' } },
+  { city: 'Jakarta',      country: 'Indonesia',          coords: { latitude: -6.2088, longitude: 106.8456, timezone: 'Asia/Jakarta' } },
+  { city: 'Kuala Lumpur', country: 'Malaysia',           coords: { latitude: 3.1390,  longitude: 101.6869, timezone: 'Asia/Kuala_Lumpur' } },
+  { city: 'London',       country: 'United Kingdom',     coords: { latitude: 51.5074, longitude: -0.1278,  timezone: 'Europe/London' } },
+  { city: 'New York',     country: 'United States',      coords: { latitude: 40.7128, longitude: -74.0060, timezone: 'America/New_York' } },
+  { city: 'Toronto',      country: 'Canada',             coords: { latitude: 43.6532, longitude: -79.3832, timezone: 'America/Toronto' } },
+  { city: 'Sydney',       country: 'Australia',          coords: { latitude: -33.8688, longitude: 151.2093, timezone: 'Australia/Sydney' } },
+]
+
+const STORAGE_KEY = 'prayer-times:location'
+
+const loadSavedLocation = (): { coords?: Coords; city?: City } | null => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+const saveLocation = (data: { coords?: Coords; city?: City }) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+const displayLabel = (city?: City): string => {
+  if (!city) return ''
+  if (city.city === 'Your Location') return city.city
+  return `${city.city}, ${city.country}`
 }
 
 export const PrayerTimes = () => {
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null)
-  const [locationName, setLocationName] = useState<{ city?: string; country?: string }>({})
-  const [date] = useState(new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }))
+  const { error: showErrorToast } = useToast()
 
-  // Get user's geolocation on mount
+  // Restore the user's last location so they don't have to re-pick every visit.
+  const saved = useMemo(() => loadSavedLocation(), [])
+  const [coords, setCoords] = useState<Coords | undefined>(saved?.coords)
+  const [selectedCity, setSelectedCity] = useState<City | undefined>(saved?.city)
+  const [resolvedCity, setResolvedCity] = useState<City | undefined>(saved?.city)
+
+  const [date] = useState(
+    new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }),
+  )
+
+  // Manual search UI state
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [resolvingCity, setResolvingCity] = useState(false)
+
+  // ---- On mount: try geolocation once, if we have no saved location ----
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          }
-          setUserLocation(coords)
-          
-          // Try to get city/country from coordinates (reverse geocoding)
-          // For now, we'll use default or let user set it
-          setLocationName({ city: 'Your Location', country: 'Earth' })
-        },
-        (error) => {
-          console.log('Geolocation not available, using default location:', error)
-          // Default to a major city
-          setLocationName({ city: 'Cairo', country: 'Egypt' })
-        }
-      )
-    } else {
-      setLocationName({ city: 'Cairo', country: 'Egypt' })
+    if (coords || selectedCity) {
+      return
     }
-  }, [])
+    if (!('geolocation' in navigator)) return
 
-  // Fetch prayer times from API based on location
-  const { data: prayerData, isLoading, error, refetch, isRefetching } = useQuery({
-    queryKey: ['prayerTimes', userLocation],
+    setResolvingCity(true)
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const c: Coords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC',
+        }
+        setCoords(c)
+        try {
+          const geo = await prayerTimesService.reverseGeocode(c.latitude, c.longitude)
+          if (geo.city && geo.country) {
+            const city: City = { city: geo.city, country: geo.country }
+            setResolvedCity(city)
+            saveLocation({ coords: c, city })
+            prayerTimesService
+              .setUserLocation({
+                city: city.city,
+                country: city.country,
+                latitude: c.latitude,
+                longitude: c.longitude,
+                timezone: c.timezone ?? 'UTC',
+              })
+              .catch((err) => console.warn('Failed to persist GPS location', err))
+          } else {
+            saveLocation({ coords: c })
+          }
+        } catch (err) {
+          console.warn('Reverse-geocode failed', err)
+          saveLocation({ coords: c })
+        } finally {
+          setResolvingCity(false)
+        }
+      },
+      (err) => {
+        console.log('Geolocation denied/unavailable:', err.message)
+        setResolvingCity(false)
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
+    )
+  }, [coords, selectedCity])
+
+  // ---- Filtered search results ----
+  const filteredCities = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return POPULAR_CITIES.slice(0, 8)
+    return POPULAR_CITIES.filter(
+      (c) => c.city.toLowerCase().includes(q) || c.country.toLowerCase().includes(q),
+    )
+  }, [searchQuery])
+
+  const handlePickCity = (c: City & { coords?: Coords }) => {
+    setSelectedCity(c)
+    setResolvedCity(c)
+    setCoords(undefined)
+    setSearchOpen(false)
+    setSearchQuery('')
+    saveLocation({ city: c })
+
+    const coords = c.coords
+    if (coords && coords.latitude != null && coords.longitude != null) {
+      prayerTimesService
+        .setUserLocation({
+          city: c.city,
+          country: c.country,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          timezone: coords.timezone ?? 'UTC',
+        })
+        .catch((err) => console.warn('Failed to persist user location to backend', err))
+    }
+  }
+
+  const handleUseGPS = () => {
+    if (!('geolocation' in navigator)) {
+      showErrorToast('Geolocation is not supported in this browser')
+      return
+    }
+    setResolvingCity(true)
+    setSearchOpen(false)
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const c: Coords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC',
+        }
+        setCoords(c)
+        setSelectedCity(undefined)
+        try {
+          const geo = await prayerTimesService.reverseGeocode(c.latitude, c.longitude)
+          const city: City | undefined =
+            geo.city && geo.country ? { city: geo.city, country: geo.country } : undefined
+          setResolvedCity(city)
+          saveLocation({ coords: c, city })
+          if (city) {
+            prayerTimesService
+              .setUserLocation({
+                city: city.city,
+                country: city.country,
+                latitude: c.latitude,
+                longitude: c.longitude,
+                timezone: c.timezone ?? 'UTC',
+              })
+              .catch((err) => console.warn('Failed to persist GPS location', err))
+          }
+          if (!city) {
+            showErrorToast('Could not resolve a city name from your location')
+          }
+        } catch (err) {
+          console.warn('Reverse-geocode failed', err)
+          setResolvedCity(undefined)
+          saveLocation({ coords: c })
+          showErrorToast('Could not resolve a city name from your location')
+        } finally {
+          setResolvingCity(false)
+        }
+      },
+      (err) => {
+        setResolvingCity(false)
+        showErrorToast(
+          err.code === err.PERMISSION_DENIED
+            ? 'Location permission denied. Please pick a city manually.'
+            : 'Could not detect your location. Please pick a city manually.',
+        )
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
+    )
+  }
+
+  // ---- Prayer times query ----
+  const queryKey = useMemo(
+    () => ['prayerTimes', coords?.latitude, coords?.longitude, selectedCity?.city, selectedCity?.country],
+    [coords, selectedCity],
+  )
+
+  const {
+    data: prayerData,
+    isLoading,
+    error,
+    refetch,
+    isRefetching,
+  } = useQuery({
+    queryKey,
     queryFn: async () => {
       try {
-        // If we have coordinates, use location endpoint
-        if (userLocation?.latitude && userLocation?.longitude) {
-          const response = await prayerTimesService.getPrayerTimesByLocation(
-            userLocation.latitude,
-            userLocation.longitude
+        if (coords?.latitude && coords?.longitude) {
+          return await prayerTimesService.getPrayerTimesByLocation(
+            coords.latitude,
+            coords.longitude,
           )
-          return response
-        } else {
-          // Otherwise use city endpoint
-          const response = await prayerTimesService.getPrayerTimesByCity(
-            locationName.city || 'Cairo',
-            locationName.country || 'Egypt'
-          )
-          return response
         }
+        if (selectedCity) {
+          return await prayerTimesService.getPrayerTimesByCity(
+            selectedCity.city,
+            selectedCity.country,
+          )
+        }
+        return null
       } catch (err) {
         console.error('Failed to fetch prayer times:', err)
-        // Return fallback data
         return null
       }
     },
-    enabled: !!(userLocation || locationName.city),
-    staleTime: 1000 * 60 * 60, // 1 hour
-    refetchInterval: 1000 * 60 * 60 * 4, // Refetch every 4 hours
+    enabled: !!(coords || selectedCity),
+    staleTime: 1000 * 60 * 60,
+    refetchInterval: 1000 * 60 * 60 * 4,
   })
 
-  // Transform prayer data to Prayer interface
+  // ---- Build display list ----
   const prayers: Prayer[] = [
-    {
-      name: 'Fajr',
-      time: typeof prayerData?.prayers?.fajr === 'string' ? prayerData.prayers.fajr : '05:30 AM',
-      icon: <Sun size={24} />,
-      color: 'text-orange-600'
-    },
-    {
-      name: 'Dhuhr',
-      time: typeof prayerData?.prayers?.dhuhr === 'string' ? prayerData.prayers.dhuhr : '12:45 PM',
-      icon: <Sun size={24} />,
-      color: 'text-yellow-600'
-    },
-    {
-      name: 'Asr',
-      time: typeof prayerData?.prayers?.asr === 'string' ? prayerData.prayers.asr : '03:50 PM',
-      icon: <Sun size={24} />,
-      color: 'text-amber-600'
-    },
-    {
-      name: 'Maghrib',
-      time: typeof prayerData?.prayers?.maghrib === 'string' ? prayerData.prayers.maghrib : '05:45 PM',
-      icon: <Moon size={24} />,
-      color: 'text-purple-600'
-    },
-    {
-      name: 'Isha',
-      time: typeof prayerData?.prayers?.isha === 'string' ? prayerData.prayers.isha : '07:15 PM',
-      icon: <Moon size={24} />,
-      color: 'text-indigo-600'
-    }
+    { name: 'Fajr',    time: format12Hour(prayerData?.prayers?.fajr),    icon: <Sun size={22} />,  accent: 'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)' },
+    { name: 'Dhuhr',   time: format12Hour(prayerData?.prayers?.dhuhr),   icon: <Sun size={22} />,  accent: 'linear-gradient(135deg, var(--gold-light) 0%, var(--gold-glow) 100%)' },
+    { name: 'Asr',     time: format12Hour(prayerData?.prayers?.asr),     icon: <Sun size={22} />,  accent: 'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-deep) 100%)' },
+    { name: 'Maghrib', time: format12Hour(prayerData?.prayers?.maghrib), icon: <Moon size={22} />, accent: 'linear-gradient(135deg, var(--crimson, #b91c1c) 0%, var(--gold-deep) 100%)' },
+    { name: 'Isha',    time: format12Hour(prayerData?.prayers?.isha),    icon: <Moon size={22} />, accent: 'linear-gradient(135deg, var(--lapiz, #1e3a8a) 0%, var(--gold-deep) 100%)' },
   ]
 
-  if (isLoading) return <LoadingSpinner fullScreen text="Loading prayer times..." />
+  const locationLabel = resolvedCity
+    ? displayLabel(resolvedCity)
+    : coords
+      ? `${coords.latitude.toFixed(2)}, ${coords.longitude.toFixed(2)}`
+      : 'Location not set'
+
+  // ---------- RENDER ----------
+
+  if (isLoading && !prayerData) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader size={32} className="animate-spin" style={{ color: 'var(--gold-mid)' }} />
+          <span
+            className="text-[10px] uppercase font-semibold"
+            style={{ color: 'var(--gold-deep)', letterSpacing: '0.18em' }}
+          >
+            Calculating prayer times
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   if (error) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white border-2 border-amber-500 rounded-lg text-gray-900 px-4 py-3">
-          <p className="font-semibold">Unable to Load Prayer Times</p>
-          <p className="text-sm text-gray-600 mt-1">Please check your location settings and try again.</p>
-          <Button onClick={() => refetch()} variant="secondary" className="mt-3 text-sm">
-            Try Again
-          </Button>
-        </div>
+        <OrnateCard variant="dark" topBar corners="all" className="!p-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={20} style={{ color: 'var(--missed, #e44244)' }} />
+            <div>
+              <p
+                className="font-bold"
+                style={{
+                  color: 'var(--manuscript-cream)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                Unable to Load Prayer Times
+              </p>
+              <p className="text-sm mt-1" style={{ color: 'var(--gold-mid)' }}>
+                Please try again or pick a different city.
+              </p>
+              <button
+                onClick={() => refetch()}
+                className="mt-3 px-4 py-1.5 rounded-xl text-sm font-semibold transition"
+                style={{
+                  background:
+                    'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                  color: 'var(--emerald-deep)',
+                  border: '1px solid var(--gold-deep)',
+                }}
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </OrnateCard>
       </div>
     )
   }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 md:pt-0">
-      {/* Header Section */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-3">Prayer Times</h1>
-        <div className="bg-white rounded-lg p-6 border-2 border-amber-500 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-gray-700">
-                <MapPin size={18} className="text-amber-600" />
-                <span className="font-medium">{prayerData?.location || locationName.city || 'Your Location'}</span>
-              </div>
-              <p className="text-sm text-gray-600">{date}</p>
-              {prayerData?.hijri_date && (
-                <p className="text-sm text-gray-600">Islamic Date: {prayerData.hijri_date}</p>
-              )}
-            </div>
-            <Button
-              onClick={() => refetch()}
-              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg"
-              disabled={isRefetching}
-            >
-              <RefreshCw size={16} className={isRefetching ? 'animate-spin' : ''} />
-              {isRefetching ? 'Updating...' : 'Refresh'}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Prayer Times Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        {prayers.map((prayer, index) => (
-          <div
-            key={index}
-            className="bg-white rounded-lg p-5 border-2 border-amber-500 shadow hover:shadow-lg transition-shadow"
+      <PageHeader
+        title="Prayer Times"
+        subtitle="Daily schedule for your location"
+        ornament={<CrescentStar size={28} />}
+        actions={
+          <button
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-60 border"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+              color: 'var(--emerald-deep)',
+              borderColor: 'var(--gold-deep)',
+            }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="bg-amber-50 p-2 rounded-lg">
-                <div className={`${prayer.color}`}>{prayer.icon}</div>
-              </div>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">{prayer.name}</h3>
-            <p className="text-2xl font-bold text-gray-900">{prayer.time}</p>
-          </div>
-        ))}
-      </div>
+            <RefreshCw size={16} className={isRefetching ? 'animate-spin' : ''} />
+            {isRefetching ? 'Updating…' : 'Refresh'}
+          </button>
+        }
+      />
 
-      {/* Additional Info Section */}
+      {/* ----- Location card ----- */}
+      <OrnateCard variant="dark" topBar corners="all" className="!p-6 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <MapPin size={18} style={{ color: 'var(--gold-mid)' }} className="flex-shrink-0" />
+              <span
+                className="font-bold truncate"
+                title={locationLabel}
+                style={{
+                  color: 'var(--manuscript-cream)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {resolvingCity ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader size={14} className="animate-spin" />
+                    Detecting your location…
+                  </span>
+                ) : (
+                  locationLabel
+                )}
+              </span>
+            </div>
+            <p
+              className="text-xs uppercase font-semibold"
+              style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
+            >
+              {date}
+            </p>
+            {prayerData?.hijri_date && (
+              <p
+                className="text-xs"
+                style={{ color: 'var(--gold-light)' }}
+              >
+                Islamic Date: <span className="font-semibold">{prayerData.hijri_date}</span>
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition border"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+              color: 'var(--emerald-deep)',
+              borderColor: 'var(--gold-deep)',
+            }}
+          >
+            <Search size={16} />
+            {resolvedCity || coords ? 'Change city' : 'Pick a city'}
+          </button>
+        </div>
+      </OrnateCard>
+
+      {/* ----- Empty state when no location is set yet ----- */}
+      {!coords && !selectedCity && !resolvingCity && (
+        <OrnateCard variant="dark" topBar corners="all" className="!p-8 mb-8 text-center">
+          <Compass
+            className="mx-auto mb-3"
+            size={48}
+            style={{ color: 'var(--gold-mid)' }}
+          />
+          <p
+            className="text-lg font-bold mb-1"
+            style={{
+              color: 'var(--manuscript-cream)',
+              fontFamily: 'Georgia, "Times New Roman", serif',
+            }}
+          >
+            No location set
+          </p>
+          <p
+            className="text-sm mb-4"
+            style={{ color: 'var(--gold-mid)' }}
+          >
+            Pick a city or use your device&rsquo;s GPS to see accurate prayer times.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              onClick={handleUseGPS}
+              className="px-4 py-2 rounded-xl text-sm font-semibold transition border"
+              style={{
+                background:
+                  'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                color: 'var(--emerald-deep)',
+                borderColor: 'var(--gold-deep)',
+              }}
+            >
+              Use my location
+            </button>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="px-4 py-2 rounded-xl text-sm font-semibold transition border"
+              style={{
+                background: 'rgba(251,243,223,0.10)',
+                color: 'var(--manuscript-cream)',
+                borderColor: 'var(--gold-mid)',
+              }}
+            >
+              Choose a city
+            </button>
+          </div>
+        </OrnateCard>
+      )}
+
+      {/* ----- Prayer Times Grid ----- */}
       {prayerData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-6 border-2 border-amber-500 shadow">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Sun size={20} className="text-amber-600" />
-              Sunrise & Sunset
+        <ManuscriptSection
+          title="Today's Schedule"
+          subtitle="Five daily prayers"
+        >
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
+            {prayers.map((prayer) => (
+              <div
+                key={prayer.name}
+                className="rounded-2xl p-4 flex flex-col"
+                style={{
+                  background:
+                    'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+                  border: '1px solid var(--gold-mid)',
+                  boxShadow: '0 4px 24px -12px rgba(0,0,0,0.4)',
+                }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div
+                    className="p-2 rounded-lg inline-flex items-center justify-center"
+                    style={{ background: prayer.accent, color: 'var(--emerald-deep)' }}
+                  >
+                    {prayer.icon}
+                  </div>
+                </div>
+                <h3
+                  className="text-base font-bold mb-1"
+                  style={{
+                    color: 'var(--manuscript-cream)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  {prayer.name}
+                </h3>
+                <p
+                  className="text-2xl font-bold tabular-nums"
+                  style={{
+                    color: 'var(--manuscript-cream)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  {prayer.time}
+                </p>
+              </div>
+            ))}
+          </div>
+        </ManuscriptSection>
+      )}
+
+      {/* ----- Sunrise / Sunset + Fasting Times ----- */}
+      {prayerData && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 mb-8">
+          <OrnateCard variant="dark" topBar={false} corners="all" className="!p-6">
+            <h3
+              className="text-lg font-bold mb-4 flex items-center gap-2"
+              style={{
+                color: 'var(--manuscript-cream)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              <Sun size={20} style={{ color: 'var(--gold-mid)' }} />
+              Sunrise &amp; Sunset
             </h3>
             <div className="space-y-4">
-              <div className="flex justify-between items-center pb-4 border-b border-gray-200">
-                <span className="text-gray-600 font-medium">Sunrise</span>
-                <span className="font-semibold text-gray-900">{typeof prayerData?.prayers?.sunrise === 'string' ? prayerData.prayers.sunrise : '06:30 AM'}</span>
+              <div
+                className="flex justify-between items-center pb-4"
+                style={{ borderBottom: '1px solid var(--gold-mid)' }}
+              >
+                <span
+                  className="text-[10px] uppercase font-semibold"
+                  style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
+                >
+                  Sunrise
+                </span>
+                <span
+                  className="font-bold"
+                  style={{
+                    color: 'var(--manuscript-cream)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  {format12Hour(prayerData.prayers.sunrise)}
+                </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600 font-medium">Sunset</span>
-                <span className="font-semibold text-gray-900">{typeof prayerData?.prayers?.sunset === 'string' ? prayerData.prayers.sunset : '06:00 PM'}</span>
+                <span
+                  className="text-[10px] uppercase font-semibold"
+                  style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
+                >
+                  Sunset
+                </span>
+                <span
+                  className="font-bold"
+                  style={{
+                    color: 'var(--manuscript-cream)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  {format12Hour(prayerData.prayers.sunset)}
+                </span>
               </div>
             </div>
-          </div>
+          </OrnateCard>
 
-          <div className="bg-white rounded-lg p-6 border-2 border-amber-500 shadow">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Moon size={20} className="text-amber-600" />
+          <OrnateCard variant="dark" topBar={false} corners="all" className="!p-6">
+            <h3
+              className="text-lg font-bold mb-4 flex items-center gap-2"
+              style={{
+                color: 'var(--manuscript-cream)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              <Moon size={20} style={{ color: 'var(--gold-mid)' }} />
               Fasting Times (Ramadan)
             </h3>
             <div className="space-y-4">
-              <div className="flex justify-between items-center pb-4 border-b border-gray-200">
-                <span className="text-gray-600 font-medium">Imsak (Suhoor End)</span>
-                <span className="font-semibold text-gray-900">{typeof prayerData?.prayers?.imsak === 'string' ? prayerData.prayers.imsak : '05:15 AM'}</span>
+              <div
+                className="flex justify-between items-center pb-4"
+                style={{ borderBottom: '1px solid var(--gold-mid)' }}
+              >
+                <span
+                  className="text-[10px] uppercase font-semibold"
+                  style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
+                >
+                  Imsak (Suhoor End)
+                </span>
+                <span
+                  className="font-bold"
+                  style={{
+                    color: 'var(--manuscript-cream)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  {format12Hour(prayerData.prayers.imsak)}
+                </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600 font-medium">Maghrib (Fast Break)</span>
-                <span className="font-semibold text-gray-900">{typeof prayerData?.prayers?.maghrib === 'string' ? prayerData.prayers.maghrib : '05:45 PM'}</span>
+                <span
+                  className="text-[10px] uppercase font-semibold"
+                  style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
+                >
+                  Maghrib (Fast Break)
+                </span>
+                <span
+                  className="font-bold"
+                  style={{
+                    color: 'var(--manuscript-cream)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  {format12Hour(prayerData.prayers.maghrib)}
+                </span>
               </div>
             </div>
-          </div>
+          </OrnateCard>
         </div>
       )}
 
-      {/* Islamic Calendar Section */}
-      <div className="bg-white rounded-lg p-8 border-2 border-amber-500 shadow">
-        <div className="flex items-center gap-2 mb-4">
-          <Clock size={24} className="text-amber-600" />
-          <h2 className="text-2xl font-semibold text-gray-900">Islamic Calendar</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-            <p className="text-sm text-gray-600 mb-1">Islamic Date (Hijri)</p>
-            <p className="text-xl font-bold text-gray-900">
-              {prayerData?.hijri_date || 'Loading Islamic date...'}
-            </p>
+      {/* ----- Islamic Calendar ----- */}
+      {prayerData && (
+        <ManuscriptSection
+          title="Islamic Calendar"
+          subtitle="Today across both calendars"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <OrnateCard variant="dark" topBar={false} corners="all" className="!p-5">
+              <p
+                className="text-[10px] uppercase font-semibold mb-1"
+                style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
+              >
+                Islamic Date (Hijri)
+              </p>
+              <p
+                className="text-xl font-bold"
+                style={{
+                  color: 'var(--manuscript-cream)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {prayerData.hijri_date ?? '—'}
+              </p>
+              
+            </OrnateCard>
+
+            <OrnateCard variant="dark" topBar={false} corners="all" className="!p-5">
+              <p
+                className="text-[10px] uppercase font-semibold mb-1"
+                style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
+              >
+                Gregorian Date
+              </p>
+              <p
+                className="text-xl font-bold"
+                style={{
+                  color: 'var(--manuscript-cream)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </p>
+            </OrnateCard>
           </div>
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <p className="text-sm text-gray-600 mb-1">Gregorian Date</p>
-            <p className="text-xl font-bold text-gray-900">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-          </div>
+        </ManuscriptSection>
+      )}
+
+      <GoldDivider className="my-6" />
+
+      {/* ----- City search modal ----- */}
+      {searchOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4"
+          onClick={() => setSearchOpen(false)}
+          style={{
+            background: 'rgba(8, 24, 18, 0.65)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <OrnateCard
+            topBar
+            corners="all"
+            className="!p-0 w-full max-w-md mt-12 sm:mt-0 overflow-hidden"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background:
+                  'linear-gradient(180deg, var(--manuscript-cream) 0%, var(--manuscript-cream-2) 100%)',
+              }}
+            >
+              <div
+                className="p-4 flex items-center gap-2"
+                style={{
+                  background:
+                    'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                  borderBottom: '1px solid var(--gold-deep)',
+                }}
+              >
+                <Search size={20} style={{ color: 'var(--emerald-deep)' }} />
+                <input
+                  type="text"
+                  autoFocus
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search city or country…"
+                  className="flex-1 outline-none bg-transparent"
+                  style={{
+                    color: 'var(--emerald-deep)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                />
+                <button
+                  onClick={() => setSearchOpen(false)}
+                  style={{ color: 'var(--emerald-deep)' }}
+                  aria-label="Close"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto">
+                {filteredCities.length === 0 ? (
+                  <div
+                    className="p-6 text-center text-sm"
+                    style={{ color: 'var(--gold-deep)' }}
+                  >
+                    No matches for &ldquo;{searchQuery}&rdquo;.
+                    <br />
+                    <span className="text-xs" style={{ opacity: 0.8 }}>
+                      Try one of the popular cities below.
+                    </span>
+                  </div>
+                ) : (
+                  filteredCities.map((c) => {
+                    const isActive =
+                      selectedCity?.city === c.city && selectedCity?.country === c.country
+                    return (
+                      <button
+                        key={`${c.city},${c.country}`}
+                        onClick={() => handlePickCity(c)}
+                        className="w-full text-left p-3 border-b last:border-0 flex items-center justify-between transition"
+                        style={{
+                          background: isActive
+                            ? 'linear-gradient(90deg, var(--manuscript-cream) 0%, var(--manuscript-cream-2) 100%)'
+                            : 'transparent',
+                          color: 'var(--emerald-deep)',
+                          borderColor: 'var(--gold-mid)',
+                        }}
+                      >
+                        <div>
+                          <p
+                            className="font-bold"
+                            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+                          >
+                            {c.city}
+                          </p>
+                          <p
+                            className="text-[10px] uppercase font-semibold"
+                            style={{
+                              color: 'var(--gold-deep)',
+                              letterSpacing: '0.18em',
+                            }}
+                          >
+                            {c.country}
+                          </p>
+                        </div>
+                        {isActive && (
+                          <span
+                            className="text-[10px] font-bold uppercase"
+                            style={{
+                              color: 'var(--gold-deep)',
+                              letterSpacing: '0.18em',
+                            }}
+                          >
+                            Selected
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </OrnateCard>
         </div>
-      </div>
+      )}
+
+      {/* Bottom-of-page hint when something goes wrong */}
+      {prayerData === null && !isLoading && (
+        <OrnateCard variant="dark" topBar={false} corners="all" className="!p-4 mt-4 flex items-center gap-2">
+          <AlertCircle size={18} style={{ color: 'var(--gold-mid)' }} />
+          <span
+            className="text-sm"
+            style={{
+              color: 'var(--manuscript-cream)',
+              fontFamily: 'Georgia, "Times New Roman", serif',
+            }}
+          >
+            Could not load prayer times. Pick a city from the search above.
+          </span>
+        </OrnateCard>
+      )}
     </div>
   )
 }
-
-
-
-
-

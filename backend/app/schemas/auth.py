@@ -35,6 +35,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     full_name: str | None = None
+    role: str | None = "USER"
     is_active: bool
     created_at: datetime
     updated_at: datetime | None = None
@@ -47,6 +48,16 @@ class UserResponse(BaseModel):
         if value is None:
             return None
         return value.isoformat()
+
+    @field_validator('role', mode='before')
+    @classmethod
+    def default_role(cls, v):
+        # Tolerate older DB rows where the role column is NULL.
+        return v if v else "USER"
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 
 class TokenResponse(BaseModel):

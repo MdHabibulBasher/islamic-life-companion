@@ -20,6 +20,11 @@ export interface DailyPrayerTimes {
     imsak?: string;
   };
   hijri_date: string;
+  /** Optional metadata about which basis/offset produced `hijri_date`.
+   *  Surfaced by the backend on /prayer-times/today so the UI can show
+   *  "per local committee" hints when applicable. */
+  hijri_basis?: string;
+  hijri_offset_applied?: number;
   location?: string;
 }
 
@@ -36,6 +41,12 @@ export interface IslamicCalendarEvent {
   description: string;
 }
 
+export interface ReverseGeocodeResult {
+  city: string | null;
+  country: string | null;
+  display_name: string | null;
+}
+
 export interface UserLocation {
   city: string;
   country: string;
@@ -45,6 +56,14 @@ export interface UserLocation {
 }
 
 class PrayerTimesService {
+  // Reverse-geocode lat/long to a city/country name
+  async reverseGeocode(latitude: number, longitude: number): Promise<ReverseGeocodeResult> {
+    const response = await api.get('/prayer-times/reverse-geocode', {
+      params: { latitude, longitude },
+    });
+    return response.data;
+  }
+
   // Get today's prayer times
   async getTodayPrayerTimes(): Promise<DailyPrayerTimes> {
     try {
@@ -187,8 +206,8 @@ class PrayerTimesService {
   // Get Islamic date for today
   async getTodayIslamicDate(): Promise<{ hijri: string; gregorian: string }> {
     try {
-      const response = await api.get('/islamic-calendar/today');
-      return response.data;
+      const response = await api.get('/prayer-times/islamic-date');
+      return { hijri: response.data.hijri_date, gregorian: response.data.gregorian_date };
     } catch (error) {
       console.error('Error fetching Islamic date:', error);
       throw error;
@@ -198,8 +217,8 @@ class PrayerTimesService {
   // Get Islamic date for a specific date
   async getIslamicDate(date: string): Promise<{ hijri: string; gregorian: string }> {
     try {
-      const response = await api.get(`/islamic-calendar/date/${date}`);
-      return response.data;
+      const response = await api.get('/prayer-times/islamic-date', { params: { target_date: date } });
+      return { hijri: response.data.hijri_date, gregorian: response.data.gregorian_date };
     } catch (error) {
       console.error('Error fetching Islamic date:', error);
       throw error;

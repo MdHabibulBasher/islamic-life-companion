@@ -1,20 +1,18 @@
 import { useAuth } from '../hooks'
 import { Link } from 'react-router-dom'
-import { Menu, LogOut, Home, Settings, Bell, BarChart3, BookOpen, Target, Trophy } from 'lucide-react'
+import { Menu, LogOut, Home, Settings, Bell, Target } from 'lucide-react'
 import { useState } from 'react'
 
 export const Navigation = () => {
   const { isAuthenticated, logout } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
 
-  const menuItems = isAuthenticated ? [
+  const menuItems = [
     { label: 'Habits', href: '/', icon: Target },
     { label: 'Dashboard', href: '/dashboard', icon: Home },
     { label: 'Prayer Times', href: '/prayer-times', icon: '🕌' },
-    { label: 'Quran', href: '/quran', icon: BookOpen },
-    { label: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { label: 'Challenges', href: '/challenges/1', icon: Trophy },
-  ] : []
+    { label: 'Tracker', href: '/prayer-tracker', icon: '✅' },
+  ]
 
   return (
     <nav className="bg-white dark:bg-gray-900 shadow-lg sticky top-0 z-40">

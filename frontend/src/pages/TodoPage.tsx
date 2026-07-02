@@ -1,232 +1,393 @@
-import { useState } from 'react'
-import { Plus, Trash2, Check, Circle } from 'lucide-react'
+﻿import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, AlertCircle, ArrowRight } from 'lucide-react'
+import {
+  taskService,
+  type Task,
+  type TaskPriority,
+  type TaskStatus,
+} from '../services/taskService'
+import { useToast } from '../components/Toast'
+import {
+  OrnateCard,
+  PageHeader,
+  Star8,
+} from '../components/IslamicOrnamentBG'
+import { KanbanBoard } from './todo/KanbanBoard'
 
-interface Todo {
-  id: string
-  title: string
-  description?: string
-  completed: boolean
-  priority: 'low' | 'medium' | 'high'
-  dueDate?: string
-}
+/**
+ * The single column every new task lands in. The user then drags it
+ * across the board: Wall of Ideas -> To do -> Doing -> Done. The
+ * server also defaults to 'ideas' (see ``TaskCreate.status`` in
+ * ``backend/app/schemas/task.py``) so even if a future caller forgets
+ * the field, the task still lands here.
+ */
+const NEW_TASK_STATUS = 'ideas' as const
 
 export const TodoPage = () => {
-  const [todos, setTodos] = useState<Todo[]>([
-    {
-      id: '1',
-      title: 'Complete daily Quran reading',
-      description: 'Read 1 page from Quran',
-      completed: false,
-      priority: 'high',
-      dueDate: '2026-02-11',
-    },
-    {
-      id: '2',
-      title: 'Complete 5 daily prayers',
-      completed: true,
-      priority: 'high',
-      dueDate: '2026-02-11',
-    },
-    {
-      id: '3',
-      title: 'Review Quranic teachings',
-      description: 'Study Surah Al-Baqarah',
-      completed: false,
-      priority: 'medium',
-      dueDate: '2026-02-12',
-    },
-  ])
-
+  const queryClient = useQueryClient()
+  const { error: showErrorToast, success: showSuccessToast } = useToast()
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
+  const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
+  const [newDueDate, setNewDueDate] = useState('')
 
-  const handleAddTodo = () => {
-    if (newTitle.trim()) {
-      const newTodo: Todo = {
-        id: Date.now().toString(),
-        title: newTitle,
-        description: newDescription || undefined,
-        completed: false,
-        priority: 'medium',
-        dueDate: new Date().toISOString().split('T')[0],
-      }
-      setTodos([newTodo, ...todos])
-      setNewTitle('')
-      setNewDescription('')
-    }
-  }
-
-  const toggleTodo = (id: string) => {
-    setTodos(todos.map((todo) => (todo.id === id ? { ...todo, completed: !todo.completed } : todo)))
-  }
-
-  const deleteTodo = (id: string) => {
-    setTodos(todos.filter((todo) => todo.id !== id))
-  }
-
-  const filteredTodos = todos.filter((todo) => {
-    if (filter === 'active') return !todo.completed
-    if (filter === 'completed') return todo.completed
-    return true
+  const {
+    data: todos = [],
+    isLoading,
+    isError,
+  } = useQuery<Task[]>({
+    queryKey: ['tasks'],
+    queryFn: () => taskService.listTasks(),
   })
 
-  const completedCount = todos.filter((t) => t.completed).length
-  const progress = todos.length > 0 ? Math.round((completedCount / todos.length) * 100) : 0
+  const createMutation = useMutation({
+    mutationFn: (payload: {
+      title: string
+      description?: string
+      status?: TaskStatus
+      priority?: TaskPriority
+      due_date?: string | null
+    }) => taskService.createTask(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      setNewTitle('')
+      setNewDescription('')
+      setNewPriority('medium')
+      setNewDueDate('')
+      showSuccessToast('Task added')
+    },
+    onError: () => showErrorToast('Failed to add task'),
+  })
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'bg-red-100 dark:bg-red-900/20 border-red-600'
-      case 'medium':
-        return 'bg-yellow-100 dark:bg-yellow-900/20 border-yellow-600'
-      case 'low':
-        return 'bg-blue-100 dark:bg-blue-900/20 border-blue-600'
-      default:
-        return 'bg-gray-100 dark:bg-gray-800 border-gray-400'
-    }
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number
+      payload: {
+        title?: string
+        description?: string | null
+        is_completed?: boolean
+        status?: TaskStatus
+        priority?: TaskPriority
+        due_date?: string | null
+      }
+    }) => taskService.updateTask(id, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+    onError: () => showErrorToast('Failed to update task'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => taskService.deleteTask(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      showSuccessToast('Task deleted')
+    },
+    onError: () => showErrorToast('Failed to delete task'),
+  })
+
+  const handleAddTodo = () => {
+    if (!newTitle.trim()) return
+    // New tasks always land in the Wall of Ideas. The user drags them
+    // across To do -> Doing -> Done.
+    createMutation.mutate({
+      title: newTitle.trim(),
+      description: newDescription.trim() || undefined,
+      status: NEW_TASK_STATUS,
+      priority: newPriority,
+      due_date: newDueDate || null,
+    })
   }
 
+  const toggleTodo = (task: Task) => {
+    // Toggling = moving to/from the Done column. We use the new status
+    // field rather than the legacy is_completed so the column reflects
+    // the change immediately.
+    const nextStatus: TaskStatus = task.status === 'done' ? 'ideas' : 'done'
+    updateMutation.mutate({
+      id: task.id,
+      payload: { status: nextStatus },
+    })
+  }
+
+  const deleteTodo = (task: Task) => deleteMutation.mutate(task.id)
+
+  const completedCount = todos.filter((t) => t.status === 'done').length
+  const progress = todos.length > 0 ? Math.round((completedCount / todos.length) * 100) : 0
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 md:pt-0">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">To-Do List</h1>
+    <div className="max-w-[1500px] mx-auto px-4 py-8 md:pt-0">
+      <PageHeader title="To-Do Board" ornament={<Star8 size={26} />} />
 
-      {/* Progress Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Progress</h2>
-          <span className="text-2xl font-bold text-green-600">
-            {completedCount}/{todos.length}
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-          <div
-            className="bg-green-600 h-3 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{progress}% Complete</p>
-      </div>
+      {/* Flow indicator — a 4-step breadcrumb explaining the intended
+          drag path. Stays compact so the 4 columns keep the lion's
+          share of the viewport. */}
+      <FlowIndicator />
 
-      {/* Add Todo Form */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create New Task</h2>
-        <div className="space-y-4">
-          <input
-            type="text"
-            placeholder="Task title..."
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleAddTodo()}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-600"
+      {isError && !isLoading && (
+        <OrnateCard
+          topBar
+          corners="all"
+          className="!p-4 mb-6 flex items-center gap-3"
+        >
+          <AlertCircle
+            size={18}
+            style={{ color: 'var(--gold-deep, #9a6b0e)' }}
           />
-          <textarea
-            placeholder="Task description (optional)..."
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-            rows={2}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-600"
-          />
-          <button
-            onClick={handleAddTodo}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium"
+          <span
+            className="text-sm"
+            style={{
+              color: 'var(--emerald-deep, #064e3b)',
+              fontFamily: 'Georgia, "Times New Roman", serif',
+            }}
           >
-            <Plus size={20} />
-            Add Task
-          </button>
-        </div>
-      </div>
+            We couldn&rsquo;t load your tasks. Refresh the page to try again.
+          </span>
+        </OrnateCard>
+      )}
 
-      {/* Filter Buttons */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'all'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
-          }`}
-        >
-          All ({todos.length})
-        </button>
-        <button
-          onClick={() => setFilter('active')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'active'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
-          }`}
-        >
-          Active ({todos.filter((t) => !t.completed).length})
-        </button>
-        <button
-          onClick={() => setFilter('completed')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'completed'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
-          }`}
-        >
-          Completed ({todos.filter((t) => t.completed).length})
-        </button>
-      </div>
-
-      {/* Todo List */}
-      <div className="space-y-3">
-        {filteredTodos.length > 0 ? (
-          filteredTodos.map((todo) => (
-            <div
-              key={todo.id}
-              className={`flex items-start gap-4 p-4 rounded-lg border-l-4 transition-all ${getPriorityColor(todo.priority)} ${
-                todo.completed ? 'opacity-60' : ''
-              }`}
-            >
-              <button
-                onClick={() => toggleTodo(todo.id)}
-                className="mt-1 flex-shrink-0 transition-colors"
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
+        {/* ---- LEFT RAIL ---------------------------------------------
+            Progress + Create-task form. Kept narrow so the four Kanban
+            columns get the lion's share of the viewport. */}
+        <aside className="flex flex-col gap-6 lg:sticky lg:top-4">
+          {/* Progress card (compact, PrayerTracker-style on the deep ground) */}
+          <div
+            className="rounded-xl !p-4"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%)',
+              border: '1px solid var(--gold-mid, #d4a017)',
+            }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h2
+                className="text-sm font-bold uppercase tracking-[0.14em]"
+                style={{
+                  color: 'var(--manuscript-cream, #fbf3df)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
               >
-                {todo.completed ? (
-                  <Check
-                    size={24}
-                    className="text-green-600 dark:text-green-400"
-                  />
-                ) : (
-                  <Circle size={24} className="text-gray-400 dark:text-gray-600" />
-                )}
-              </button>
-              <div className="flex-1 min-w-0">
-                <h3
-                  className={`font-semibold text-gray-900 dark:text-white ${
-                    todo.completed ? 'line-through text-gray-600 dark:text-gray-400' : ''
-                  }`}
-                >
-                  {todo.title}
-                </h3>
-                {todo.description && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{todo.description}</p>
-                )}
-                {todo.dueDate && (
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                    Due: {new Date(todo.dueDate).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => deleteTodo(todo.id)}
-                className="mt-1 flex-shrink-0 p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                Progress
+              </h2>
+              <span
+                className="text-base font-bold tabular-nums"
+                style={{
+                  color: 'var(--gold-light, #f0c75e)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
               >
-                <Trash2 size={18} className="text-red-600 dark:text-red-400" />
-              </button>
+                {completedCount}/{todos.length}
+              </span>
             </div>
-          ))
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-400 text-lg">
-              {filter === 'completed' ? 'No completed tasks yet' : 'No tasks yet. Create one to get started!'}
+            <div
+              className="w-full rounded-full h-2 overflow-hidden"
+              style={{ background: 'rgba(0, 0, 0, 0.30)' }}
+            >
+              <div
+                className="h-2 rounded-full transition-all duration-500"
+                style={{
+                  width: `${progress}%`,
+                  background:
+                    'linear-gradient(90deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                }}
+              />
+            </div>
+            <p
+              className="text-[10px] uppercase font-bold mt-2"
+              style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+            >
+              {progress}% Complete
             </p>
           </div>
-        )}
+
+          {/* Create-task form (compact, PrayerTracker-style on the deep ground) */}
+          <div
+            className="rounded-xl !p-4"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%)',
+              border: '1px solid var(--gold-mid, #d4a017)',
+            }}
+          >
+            <h2
+              className="text-sm font-bold uppercase tracking-[0.14em] mb-3"
+              style={{
+                color: 'var(--manuscript-cream, #fbf3df)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              Create New Task
+            </h2>
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Task title..."
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
+                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 placeholder:opacity-50"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.30)',
+                  border: '1px solid var(--gold-mid, #d4a017)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
+                }}
+              />
+              <textarea
+                placeholder="Description (optional)..."
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 placeholder:opacity-50"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.30)',
+                  border: '1px solid var(--gold-mid, #d4a017)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
+                }}
+              />
+              {/* Subtle hint that new tasks always land in Wall of Ideas
+                  — the user then drags them right. No dropdown needed. */}
+              <p
+                className="text-[10px] uppercase font-bold flex items-center gap-1.5"
+                style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+              >
+                <ArrowRight size={11} />
+                Lands in Wall of Ideas, then drag across
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label
+                    className="block text-[10px] uppercase font-bold mb-1"
+                    style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+                  >
+                    Priority
+                  </label>
+                  <select
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
+                    className="w-full px-2 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.30)',
+                      border: '1px solid var(--gold-mid, #d4a017)',
+                      color: 'var(--manuscript-cream, #fbf3df)',
+                    }}
+                  >
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    className="block text-[10px] uppercase font-bold mb-1"
+                    style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+                  >
+                    Due
+                  </label>
+                  <input
+                    type="date"
+                    value={newDueDate}
+                    onChange={(e) => setNewDueDate(e.target.value)}
+                    className="w-full px-2 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.30)',
+                      border: '1px solid var(--gold-mid, #d4a017)',
+                      color: 'var(--manuscript-cream, #fbf3df)',
+                    }}
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleAddTodo}
+                disabled={createMutation.isPending || !newTitle.trim()}
+                className="w-full px-3 py-2 rounded-lg text-sm font-bold uppercase transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                style={{
+                  background:
+                    'linear-gradient(135deg, var(--gold-mid, #d4a017) 0%, var(--gold-light, #f0c75e) 100%)',
+                  color: 'var(--emerald-deep, #064e3b)',
+                  border: '1px solid var(--gold-deep, #9a6b0e)',
+                  letterSpacing: '0.18em',
+                }}
+              >
+                <Plus size={16} />
+                {createMutation.isPending ? 'Adding…' : 'Add Task'}
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ---- RIGHT — Kanban board (takes the rest of the width) --- */}
+        <section className="min-w-0">
+          {isLoading ? (
+            <OrnateCard topBar corners="all" className="!p-8 text-center">
+              <p style={{ color: 'var(--gold-deep)' }}>Loading tasks…</p>
+            </OrnateCard>
+          ) : (
+            <KanbanBoard
+              tasks={todos}
+              onToggle={toggleTodo}
+              onDelete={deleteTodo}
+            />
+          )}
+        </section>
       </div>
     </div>
   )
 }
+
+/**
+ * FlowIndicator
+ * -------------
+ * Compact 4-step breadcrumb that explains the intended drag path on the
+ * board: Wall of Ideas -> To do -> Doing -> Done. Each step is a
+ * gold-on-emerald pill with a connecting arrow so the user immediately
+ * understands the workflow without having to read instructions.
+ */
+const FLOW_STEPS: { id: string; label: string; icon: string }[] = [
+  { id: 'ideas', label: 'Wall of Ideas', icon: '💡' },
+  { id: 'todo', label: 'To do', icon: '📋' },
+  { id: 'doing', label: 'Doing', icon: '⚙️' },
+  { id: 'done', label: 'Done', icon: '✅' },
+]
+
+const FlowIndicator = () => (
+  <div className="mb-6 flex items-center gap-2 flex-wrap">
+    <span
+      className="text-[10px] uppercase font-bold mr-1"
+      style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+    >
+      Flow
+    </span>
+    {FLOW_STEPS.map((step, idx) => (
+      <div key={step.id} className="flex items-center gap-2">
+        <div
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+          style={{
+            background: idx === 0
+              ? 'linear-gradient(135deg, var(--gold-mid, #d4a017) 0%, var(--gold-light, #f0c75e) 100%)'
+              : 'rgba(0, 0, 0, 0.30)',
+            color: idx === 0
+              ? 'var(--emerald-deep, #064e3b)'
+              : 'var(--manuscript-cream, #fbf3df)',
+            border: '1px solid var(--gold-mid, #d4a017)',
+            fontFamily: 'Georgia, "Times New Roman", serif',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+          }}
+        >
+          <span aria-hidden="true">{step.icon}</span>
+          {step.label}
+        </div>
+        {idx < FLOW_STEPS.length - 1 && (
+          <ArrowRight
+            size={14}
+            style={{ color: 'var(--gold-mid, #d4a017)' }}
+          />
+        )}
+      </div>
+    ))}
+  </div>
+)

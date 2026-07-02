@@ -5,6 +5,8 @@ interface User {
   email: string
   username?: string
   full_name?: string
+  /** User role. Admin-only routes (e.g. event management) check this. */
+  role?: string
 }
 
 interface AuthStore {
@@ -12,7 +14,7 @@ interface AuthStore {
   user: User | null
   accessToken: string | null
   refreshToken: string | null
-  
+
   // Actions
   setAuthenticated: (authenticated: boolean) => void
   setUser: (user: User | null) => void

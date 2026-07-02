@@ -5,11 +5,36 @@
 // Date utilities
 export const formatDate = (date: string | Date): string => {
   const d = new Date(date)
-  return d.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   })
+}
+
+/**
+ * Convert a 24-hour "HH:MM" (or "HH:MM:SS") string from the prayer-times
+ * backend into a friendly 12-hour "h:MM AM/PM" form. Passes through any
+ * input that isn't a recognisable time string (null, "—", empty) untouched
+ * so the caller's existing placeholder still renders.
+ */
+export const format12Hour = (time: string | null | undefined): string => {
+  if (!time) return '—'
+  const trimmed = time.trim()
+  if (!trimmed || trimmed === '—') return '—'
+
+  // Match "HH:MM" or "HH:MM:SS", optionally with a timezone suffix like
+  // "05:12 (TZ)" or "05:12:34 +06:00".
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?(?:\s.*)?$/.exec(trimmed)
+  if (!m) return trimmed
+
+  const hour24 = Number(m[1])
+  const minute = m[2]
+  if (Number.isNaN(hour24) || hour24 < 0 || hour24 > 23) return trimmed
+
+  const suffix = hour24 >= 12 ? 'PM' : 'AM'
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
+  return `${hour12}:${minute} ${suffix}`
 }
 
 export const formatTime = (seconds: number): string => {

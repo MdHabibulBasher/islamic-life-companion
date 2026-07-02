@@ -1,353 +1,591 @@
-import React, { useState } from 'react';
-import { ChevronLeft, Trophy, Users, Target, Calendar, TrendingUp, Share2, MessageCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/Form';
-// import { LoadingSpinner } from '../components';
+import React, { useMemo, useState } from 'react'
+import {
+  ChevronLeft, Calendar, Target, TrendingUp, Share2, Loader2,
+} from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  challengeService,
+  type Challenge,
+  type UserChallengeDetailed,
+} from '../services/challengeService'
+import { Button } from '../components/Form'
+import {
+  OrnateCard,
+  ManuscriptSection,
+  GoldDivider,
+  Star8,
+} from '../components/IslamicOrnamentBG'
+import { LoadingSpinner } from '../components/Loading'
 
-interface ChallengeParticipant {
-  id: string;
-  name: string;
-  avatar: string;
-  progress: number;
-  rank: number;
-  score: number;
+const DIFFICULTY_COLORS: Record<string, string> = {
+  easy: '#22c55e',
+  medium: '#f59e0b',
+  hard: '#ef4444',
 }
 
 export const ChallengeDetail: React.FC = () => {
-  const navigate = useNavigate();
-  const [isParticipating, setIsParticipating] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'leaderboard' | 'discussion'>('overview');
+  const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const queryClient = useQueryClient()
+  const [shareCopied, setShareCopied] = useState(false)
+  const [justCompleted, setJustCompleted] = useState(false)
 
-  // Mock challenge data
-  const challenge = {
-    id: '1',
-    title: 'Complete 30 Days of Quran Reading',
-    description:
-      'Join this challenge to read at least one page of Quran every day for 30 consecutive days. Build a strong habit of Quranic learning.',
-    category: 'Quran Reading',
-    startDate: '2024-02-01',
-    endDate: '2024-02-29',
-    participants: 234,
-    image: 'https://images.unsplash.com/photo-1507842217343-583f20270319?w=500&h=300&fit=crop',
-    progress: 15,
-    goal: 30,
-    difficulty: 'Medium',
-    reward: '500 Points',
-    description_long: `This is a comprehensive 30-day challenge designed to help you establish a consistent Quran reading habit. 
-    Reading the Quran daily is one of the most beneficial practices in Islam, bringing spiritual growth and peace.
-    
-    Challenge Rules:
-    - Read at least one page (or 5 minutes) of Quran each day
-    - Log your reading in the app
-    - Maintain a consecutive streak
-    - Upon completion, earn special badges and rewards
-    
-    Benefits:
-    - Spiritual growth and connection to the Quran
-    - Build a lasting daily habit
-    - Connect with other Muslims doing the same challenge
-    - Earn achievements and rewards
-    - Track your progress and celebrate milestones`,
-    requirements: [
-      'Daily Quran reading (minimum 1 page)',
-      'Log reading in app',
-      'Maintain streak',
-      'Complete within timeframe',
-    ],
-  };
+  /* ------------------------------------------------------------------------
+   *  Data fetching — challenge + user progress
+   * ---------------------------------------------------------------------- */
+  const { data: challenges } = useQuery<Challenge[]>({
+    queryKey: ['challenges', 'all'],
+    queryFn: () => challengeService.getChallenges(),
+  })
 
-  const participants: ChallengeParticipant[] = [
-    {
-      id: '1',
-      name: 'Ahmed Hassan',
-      avatar: '👨‍🎓',
-      progress: 30,
-      rank: 1,
-      score: 1500,
-    },
-    {
-      id: '2',
-      name: 'Fatima Mohamed',
-      avatar: '👩‍💼',
-      progress: 29,
-      rank: 2,
-      score: 1450,
-    },
-    {
-      id: '3',
-      name: 'Ibrahim Khan',
-      avatar: '👨‍💻',
-      progress: 28,
-      rank: 3,
-      score: 1400,
-    },
-    {
-      id: '4',
-      name: 'Aisha Ali',
-      avatar: '👩‍🎨',
-      progress: 27,
-      rank: 4,
-      score: 1350,
-    },
-    {
-      id: '5',
-      name: 'You',
-      avatar: '👤',
-      progress: 15,
-      rank: 45,
-      score: 750,
-    },
-  ];
+  const { data: userChallenges, isLoading: loadingProgress } = useQuery<UserChallengeDetailed[]>({
+    queryKey: ['challenges', 'progress'],
+    queryFn: () => challengeService.getUserChallenges(),
+  })
 
-  const discussions = [
-    {
-      id: '1',
-      author: 'Ahmed Hassan',
-      avatar: '👨‍🎓',
-      message: 'Day 30 completed! Alhamdulillah, this challenge has changed my relationship with the Quran.',
-      timestamp: '2 hours ago',
-      likes: 24,
-    },
-    {
-      id: '2',
-      author: 'Fatima Mohamed',
-      avatar: '👩‍💼',
-      message: 'Just finished day 29. So close to the finish line! Who else is on the home stretch?',
-      timestamp: '4 hours ago',
-      likes: 18,
-    },
-    {
-      id: '3',
-      author: 'Ibrahim Khan',
-      avatar: '👨‍💻',
-      message: 'The consistency from this challenge is amazing. I recommend everyone try it!',
-      timestamp: '6 hours ago',
-      likes: 31,
-    },
-  ];
+  const challenge: Challenge | undefined = useMemo(
+    () => challenges?.find((c) => c.id === id),
+    [challenges, id],
+  )
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      {/* Header with Background Image */}
-      <div
-        className="h-64 bg-cover bg-center relative"
-        style={{ backgroundImage: `url(${challenge.image})` }}
-      >
-        <div className="absolute inset-0 bg-black/50" />
+  const userProgress: UserChallengeDetailed | undefined = useMemo(
+    () => userChallenges?.find((uc) => uc.challenge.id === id),
+    [userChallenges, id],
+  )
+
+  const isParticipating = !!userProgress
+
+  /* ------------------------------------------------------------------------
+   *  Mutations
+   * ---------------------------------------------------------------------- */
+  const recordMut = useMutation({
+    mutationFn: async () => {
+      const today = new Date().toISOString().slice(0, 10)
+      await challengeService.toggleChallengeCompletion(id!, today)
+    },
+    onSuccess: () => {
+      // Refresh every cache that depends on completion state
+      queryClient.invalidateQueries({ queryKey: ['challenges', 'progress'] })
+      queryClient.invalidateQueries({ queryKey: ['challenges'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      // Briefly show the Alhamdulillah banner
+      setJustCompleted(true)
+      window.setTimeout(() => setJustCompleted(false), 6000)
+    },
+  })
+
+  const leaveMut = useMutation({
+    mutationFn: () => challengeService.leaveChallenge(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['challenges'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      // Send user back to the list after leaving
+      navigate('/challenges')
+    },
+  })
+
+  if (!id) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+        <p style={{ color: 'var(--manuscript-cream)' }}>Challenge not found.</p>
         <button
-          onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 p-2 rounded-lg bg-black/50 hover:bg-black/70 transition"
+          onClick={() => navigate('/challenges')}
+          className="mt-4 underline"
+          style={{ color: 'var(--gold-light)' }}
         >
-          <ChevronLeft className="w-6 h-6" />
+          Back to challenges
         </button>
       </div>
+    )
+  }
 
-      <div className="max-w-4xl mx-auto px-4 -mt-16 relative z-10">
-        {/* Challenge Header */}
-        <div className="bg-slate-800 rounded-lg p-6 mb-6 shadow-xl">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="text-emerald-400 text-sm font-semibold mb-2">{challenge.category}</div>
-              <h1 className="text-3xl font-bold mb-2">{challenge.title}</h1>
-              <p className="text-slate-300 text-sm">{challenge.description}</p>
+  if (!challenge || loadingProgress) {
+    return <LoadingSpinner fullScreen text="Loading challenge…" />
+  }
+
+  /* ------------------------------------------------------------------------
+   *  Derived values
+   * ---------------------------------------------------------------------- */
+  const completions = userProgress?.completions ?? []
+  const progressCount = completions.length
+  const goal = challenge.duration_days
+  const isCompleted = userProgress?.progress.is_completed ?? false
+  const currentStreak = userProgress?.progress.current_streak ?? 0
+  const difficultyColor =
+    DIFFICULTY_COLORS[challenge.difficulty?.toLowerCase()] ?? 'var(--gold-mid)'
+
+  const completedToday = completions.some(
+    (c) => c.completion_date === new Date().toISOString().slice(0, 10),
+  )
+
+  const handleShare = async () => {
+    const url = window.location.href
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: challenge.name_en,
+          text: challenge.description ?? '',
+          url,
+        })
+      } else {
+        await navigator.clipboard.writeText(url)
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2000)
+      }
+    } catch {
+      /* user cancelled share */
+    }
+  }
+
+  const handleLeave = () => {
+    if (window.confirm(`Leave "${challenge.name_en}"? Your progress will be removed.`)) {
+      leaveMut.mutate()
+    }
+  }
+
+  return (
+    <div className="max-w-[1400px] mx-auto px-4 pb-12 pt-4">
+      <div className="max-w-3xl mx-auto">
+      {/* Back row */}
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-1 mb-4 text-sm font-semibold"
+        style={{ color: 'var(--gold-mid)' }}
+      >
+        <ChevronLeft className="w-4 h-4" />
+        Back
+      </button>
+
+      {/* Celebration banner — appears after Mark Today Done */}
+      {justCompleted && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 px-5 py-4 rounded-2xl text-center"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(212, 160, 23, 0.18) 0%, rgba(212, 160, 23, 0.06) 100%)',
+            border: '1px solid var(--gold-mid)',
+            boxShadow: '0 0 24px -8px rgba(212, 160, 23, 0.45)',
+          }}
+        >
+          <p
+            className="text-base sm:text-lg font-bold"
+            style={{
+              color: 'var(--gold-light)',
+              fontFamily: 'Georgia, "Times New Roman", serif',
+            }}
+          >
+            Alhamdulillah — your deed is recorded.
+          </p>
+          <p
+            className="text-xs mt-1"
+            style={{ color: 'var(--manuscript-cream)', opacity: 0.82 }}
+          >
+            May Allah accept your prayers and keep you steadfast.
+          </p>
+        </div>
+      )}
+
+      {/* ============================ HERO CARD ============================= */}
+      <OrnateCard
+        variant="dark"
+        corners="all"
+        topBar
+        className="overflow-hidden !p-0 mb-6"
+      >
+        <div className="px-6 sm:px-10 py-8">
+          <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+            <div className="flex-1 min-w-[260px]">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span
+                  className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-1 rounded-full"
+                  style={{
+                    background: 'rgba(212, 160, 23, 0.18)',
+                    color: 'var(--gold-light)',
+                    border: '1px solid var(--gold-mid)',
+                    letterSpacing: '0.18em',
+                  }}
+                >
+                  Level {challenge.level ?? 1}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-1 rounded-full"
+                  style={{
+                    background: `${difficultyColor}22`,
+                    color: difficultyColor,
+                    border: `1px solid ${difficultyColor}`,
+                    letterSpacing: '0.16em',
+                  }}
+                >
+                  {challenge.difficulty}
+                </span>
+                {isParticipating && (
+                  <span
+                    className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-1 rounded-full"
+                    style={{
+                      background: isCompleted
+                        ? 'rgba(34, 197, 94, 0.15)'
+                        : 'rgba(245, 158, 11, 0.15)',
+                      color: isCompleted ? '#22c55e' : '#f59e0b',
+                      border: `1px solid ${isCompleted ? '#22c55e' : '#f59e0b'}`,
+                      letterSpacing: '0.16em',
+                    }}
+                  >
+                    {isCompleted ? '✓ Completed' : `Active · ${currentStreak}d streak`}
+                  </span>
+                )}
+              </div>
+
+              <p
+                className="text-[10px] uppercase font-bold mb-2"
+                style={{
+                  color: 'var(--gold-mid)',
+                  letterSpacing: '0.22em',
+                }}
+              >
+                {challenge.category ?? 'Challenge'}
+              </p>
+
+              <h1
+                className="text-3xl sm:text-4xl font-bold leading-tight mb-3"
+                style={{
+                  color: 'var(--manuscript-cream)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  textShadow: '0 2px 0 rgba(0,0,0,0.45)',
+                }}
+              >
+                {challenge.name_en}
+              </h1>
+
+              {challenge.description && (
+                <p
+                  className="text-sm sm:text-base max-w-2xl leading-relaxed"
+                  style={{ color: 'var(--manuscript-cream)', opacity: 0.82 }}
+                >
+                  {challenge.description}
+                </p>
+              )}
             </div>
-            <div className="text-right">
-              <div className="text-4xl font-bold text-emerald-400 mb-2">{challenge.reward}</div>
-              <div className="text-sm text-slate-400">Completion Prize</div>
+
+            <div
+              className="rounded-xl px-5 py-4 text-center"
+              style={{
+                background: 'rgba(212, 160, 23, 0.10)',
+                border: '1px solid var(--gold-mid)',
+                minWidth: '140px',
+              }}
+            >
+              <div
+                className="text-2xl font-bold leading-none"
+                style={{
+                  color: 'var(--gold-light)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {goal}
+              </div>
+              <div
+                className="text-[10px] uppercase font-bold mt-1"
+                style={{
+                  color: 'var(--manuscript-cream)',
+                  opacity: 0.7,
+                  letterSpacing: '0.18em',
+                }}
+              >
+                Days
+              </div>
             </div>
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-slate-700 rounded p-3 text-center">
-              <Users className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
-              <div className="font-bold">{challenge.participants}</div>
-              <div className="text-xs text-slate-400">Participants</div>
-            </div>
-            <div className="bg-slate-700 rounded p-3 text-center">
-              <Calendar className="w-5 h-5 mx-auto mb-2 text-blue-400" />
-              <div className="font-bold">{challenge.goal} Days</div>
-              <div className="text-xs text-slate-400">Duration</div>
-            </div>
-            <div className="bg-slate-700 rounded p-3 text-center">
-              <Target className="w-5 h-5 mx-auto mb-2 text-yellow-400" />
-              <div className="font-bold">{challenge.difficulty}</div>
-              <div className="text-xs text-slate-400">Difficulty</div>
-            </div>
-            <div className="bg-slate-700 rounded p-3 text-center">
-              <TrendingUp className="w-5 h-5 mx-auto mb-2 text-purple-400" />
-              <div className="font-bold">{challenge.progress}/{challenge.goal}</div>
-              <div className="text-xs text-slate-400">Your Progress</div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+            <StatTile
+              icon={<Calendar className="w-5 h-5" style={{ color: 'var(--gold-mid)' }} />}
+              value={`${goal}`}
+              label="Duration"
+            />
+            <StatTile
+              icon={<Target className="w-5 h-5" style={{ color: difficultyColor }} />}
+              value={challenge.difficulty}
+              label="Difficulty"
+            />
+            <StatTile
+              icon={<TrendingUp className="w-5 h-5" style={{ color: 'var(--emerald)' }} />}
+              value={`${progressCount}/${goal}`}
+              label="Days Complete"
+            />
           </div>
 
-          {/* Your Progress */}
+          {/* Progress bar */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <span className="font-semibold">Your Progress</span>
-              <span className="text-sm text-slate-400">
-                {challenge.progress}/{challenge.goal} days
+              <span
+                className="text-xs font-bold uppercase"
+                style={{
+                  color: 'var(--manuscript-cream)',
+                  opacity: 0.85,
+                  letterSpacing: '0.16em',
+                }}
+              >
+                Your Progress
+              </span>
+              <span
+                className="text-sm font-semibold"
+                style={{ color: 'var(--gold-light)' }}
+              >
+                {progressCount}/{goal} days · {Math.round((progressCount / goal) * 100)}%
               </span>
             </div>
-            <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden">
+            <div
+              className="w-full rounded-full h-3 overflow-hidden"
+              style={{
+                background: 'rgba(0,0,0,0.25)',
+                border: '1px solid var(--gold-mid)',
+              }}
+            >
               <div
-                className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full rounded-full transition-all"
-                style={{ width: `${(challenge.progress / challenge.goal) * 100}%` }}
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, (progressCount / goal) * 100)}%`,
+                  background:
+                    'linear-gradient(90deg, var(--emerald) 0%, var(--gold-mid) 100%)',
+                  boxShadow: '0 0 8px rgba(212, 160, 23, 0.5)',
+                }}
               />
             </div>
           </div>
 
+          {/* Reward */}
+          {challenge.reward && (
+            <p
+              className="text-xs italic text-center mb-6"
+              style={{ color: 'var(--gold-mid)', opacity: 0.9 }}
+            >
+              Reward: {challenge.reward}
+            </p>
+          )}
+
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             {isParticipating ? (
-              <>
-                <Button variant="primary" className="flex-1 flex items-center justify-center gap-2">
-                  <Target className="w-4 h-4" />
-                  Record Progress
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setIsParticipating(false)}
-                  className="flex items-center gap-2"
-                >
-                  Leave Challenge
-                </Button>
-              </>
-            ) : (
               <>
                 <Button
                   variant="primary"
-                  onClick={() => setIsParticipating(true)}
+                  onClick={() => recordMut.mutate()}
+                  disabled={recordMut.isPending}
                   className="flex-1 flex items-center justify-center gap-2"
                 >
-                  <Trophy className="w-4 h-4" />
-                  Join Challenge
+                  {recordMut.isPending ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Target className="w-4 h-4" />
+                      {completedToday ? 'Undo Today' : 'Mark Today Done'}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleLeave}
+                  disabled={leaveMut.isPending}
+                  className="flex items-center gap-2"
+                >
+                  {leaveMut.isPending ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Leaving…
+                    </>
+                  ) : (
+                    'Leave Challenge'
+                  )}
                 </Button>
               </>
-            )}
-            <Button variant="secondary" className="flex items-center gap-2">
-              <Share2 className="w-4 h-4" />
-              Share
-            </Button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-slate-700">
-          {(['overview', 'leaderboard', 'discussion'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 font-semibold border-b-2 transition ${
-                activeTab === tab
-                  ? 'border-emerald-500 text-emerald-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <div className="bg-slate-800 rounded-lg p-6 mb-8 shadow-xl">
-            <h2 className="text-xl font-bold mb-4">Challenge Overview</h2>
-            <div className="prose prose-invert max-w-none text-slate-300 whitespace-pre-wrap mb-6">
-              {challenge.description_long}
-            </div>
-
-            <h3 className="text-lg font-bold mb-4">Requirements</h3>
-            <ul className="space-y-2">
-              {challenge.requirements.map((req, idx) => (
-                <li key={idx} className="flex items-center gap-3 text-slate-300">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded accent-emerald-500"
-                    readOnly
-                  />
-                  {req}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {activeTab === 'leaderboard' && (
-          <div className="bg-slate-800 rounded-lg p-6 mb-8 shadow-xl">
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-400" />
-              Leaderboard
-            </h2>
-
-            <div className="space-y-3">
-              {participants.map((participant) => (
-                <div
-                  key={participant.id}
-                  className="p-4 bg-slate-700 rounded-lg flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="text-2xl font-bold text-slate-500 w-8">{participant.rank}</div>
-                    <div className="text-2xl">{participant.avatar}</div>
-                    <div className="flex-1">
-                      <div className="font-semibold">{participant.name}</div>
-                      <div className="text-sm text-slate-400">
-                        {participant.progress}/{challenge.goal} days completed
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-emerald-400">{participant.score} pts</div>
-                    <div className="text-sm text-slate-400">
-                      {Math.round((participant.progress / challenge.goal) * 100)}%
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'discussion' && (
-          <div className="bg-slate-800 rounded-lg p-6 mb-8 shadow-xl">
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-blue-400" />
-              Community Discussion
-            </h2>
-
-            {/* New Message Form */}
-            {isParticipating && (
-              <div className="mb-6 p-4 bg-slate-700 rounded-lg">
-                <textarea
-                  placeholder="Share your progress or encourage others..."
-                  className="w-full bg-slate-600 rounded p-3 text-white placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3"
-                  rows={3}
-                />
-                <Button variant="primary">Post Message</Button>
+            ) : (
+              <div
+                className="flex-1 text-center text-sm italic py-3 rounded-xl"
+                style={{
+                  color: 'var(--manuscript-cream)',
+                  opacity: 0.7,
+                  border: '1px dashed var(--gold-mid)',
+                }}
+              >
+                You haven't joined this challenge yet — go back and tap "Join".
               </div>
             )}
-
-            {/* Messages */}
-            <div className="space-y-4">
-              {discussions.map((msg) => (
-                <div key={msg.id} className="p-4 bg-slate-700 rounded-lg">
-                  <div className="flex items-start gap-3 mb-2">
-                    <div className="text-2xl">{msg.avatar}</div>
-                    <div className="flex-1">
-                      <div className="font-semibold">{msg.author}</div>
-                      <div className="text-xs text-slate-400">{msg.timestamp}</div>
-                    </div>
-                  </div>
-                  <p className="text-slate-300 mb-3">{msg.message}</p>
-                  <button className="text-sm text-slate-400 hover:text-emerald-400 transition">
-                    ❤️ {msg.likes} likes
-                  </button>
-                </div>
-              ))}
-            </div>
+            <Button
+              variant="secondary"
+              onClick={handleShare}
+              className="flex items-center gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              {shareCopied ? 'Copied!' : 'Share'}
+            </Button>
           </div>
-        )}
+
+          {leaveMut.isError && (
+            <p className="text-center text-xs mt-3" style={{ color: '#fca5a5' }}>
+              Could not leave challenge. Please try again.
+            </p>
+          )}
+        </div>
+      </OrnateCard>
+
+      {/* ============================ OVERVIEW ============================= */}
+      <ManuscriptSection title="Challenge Overview" subtitle="Rules, benefits, and requirements">
+        <OrnateCard variant="dark" corners="all" topBar className="!p-6">
+          <div
+            className="text-sm leading-relaxed mb-6"
+            style={{
+              color: 'var(--manuscript-cream)',
+              opacity: 0.85,
+              fontFamily: 'Georgia, "Times New Roman", serif',
+            }}
+          >
+            <p className="mb-3">
+              This is a {goal}-day challenge designed to help you build a consistent habit of
+              <span className="font-semibold" style={{ color: 'var(--gold-light)' }}>
+                {' '}
+                {challenge.name_en.toLowerCase()}
+              </span>
+              .
+            </p>
+
+            <h3
+              className="text-base font-semibold mb-3 mt-5"
+              style={{ color: 'var(--gold-light)' }}
+            >
+              Challenge Rules
+            </h3>
+            <ul className="space-y-2 mb-5 pl-1">
+              <RuleRow text={`Engage with the practice at least once each day for ${goal} days.`} />
+              <RuleRow text="Mark today's completion in the app to maintain your streak." />
+              <RuleRow text="Use the grace day feature for missed days when available." />
+              <RuleRow text="Complete within the timeframe to earn the reward." />
+            </ul>
+
+            <h3
+              className="text-base font-semibold mb-3"
+              style={{ color: 'var(--gold-light)' }}
+            >
+              Benefits
+            </h3>
+            <ul className="space-y-2 pl-1">
+              <RuleRow text="Spiritual growth and a stronger daily routine." />
+              <RuleRow text="Build a lasting habit, one day at a time." />
+              <RuleRow text="Track your progress and celebrate milestones." />
+              {challenge.reward && (
+                <RuleRow text={`Earn ${challenge.reward} upon completion.`} />
+              )}
+            </ul>
+          </div>
+
+          <GoldDivider className="my-5" />
+
+          <h3
+            className="text-base font-semibold mb-4"
+            style={{ color: 'var(--gold-light)' }}
+          >
+            Requirements
+          </h3>
+          <ul className="space-y-2">
+            <RequirementRow text={`Daily commitment for ${goal} days.`} />
+            <RequirementRow text="Log progress in the app." />
+            <RequirementRow text="Maintain your streak." />
+            <RequirementRow text="Complete within the timeframe." />
+          </ul>
+        </OrnateCard>
+      </ManuscriptSection>
+
+      {/* Footer ornament */}
+      <div className="mt-8 flex items-center justify-center gap-2">
+        <Star8 size={14} color="var(--gold-mid)" />
+        <span
+          className="text-[10px] uppercase font-bold"
+          style={{
+            color: 'var(--gold-mid)',
+            opacity: 0.85,
+            letterSpacing: '0.22em',
+          }}
+        >
+          Journey Together
+        </span>
+        <Star8 size={14} color="var(--gold-mid)" />
+      </div>
       </div>
     </div>
-  );
-};
+  )
+}
+
+/* ============================================================================
+ *  Helper components
+ * ========================================================================= */
+
+const StatTile: React.FC<{ icon: React.ReactNode; value: string; label: string }> = ({
+  icon,
+  value,
+  label,
+}) => (
+  <div
+    className="rounded-xl px-4 py-3 text-center"
+    style={{
+      background: 'rgba(212, 160, 23, 0.08)',
+      border: '1px solid var(--gold-mid)',
+    }}
+  >
+    <div className="flex justify-center mb-1">{icon}</div>
+    <div
+      className="font-bold text-lg leading-none"
+      style={{
+        color: 'var(--manuscript-cream)',
+        fontFamily: 'Georgia, "Times New Roman", serif',
+      }}
+    >
+      {value}
+    </div>
+    <div
+      className="text-[10px] uppercase font-bold mt-1"
+      style={{
+        color: 'var(--manuscript-cream)',
+        opacity: 0.7,
+        letterSpacing: '0.18em',
+      }}
+    >
+      {label}
+    </div>
+  </div>
+)
+
+const RuleRow: React.FC<{ text: string }> = ({ text }) => (
+  <li className="flex items-start gap-2">
+    <span
+      className="mt-2 inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+      style={{ background: 'var(--gold-mid)' }}
+    />
+    <span style={{ color: 'var(--manuscript-cream)', opacity: 0.85 }}>{text}</span>
+  </li>
+)
+
+const RequirementRow: React.FC<{ text: string }> = ({ text }) => (
+  <li
+    className="flex items-center gap-3 p-2 rounded-lg"
+    style={{
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(212, 160, 23, 0.25)',
+    }}
+  >
+    <input
+      type="checkbox"
+      className="w-4 h-4 rounded"
+      readOnly
+      style={{ accentColor: 'var(--gold-mid)' }}
+    />
+    <span style={{ color: 'var(--manuscript-cream)', opacity: 0.85 }}>{text}</span>
+  </li>
+)
+
+export default ChallengeDetail

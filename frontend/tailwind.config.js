@@ -109,7 +109,96 @@ export default {
         },
         slate: {
           950: '#030712',
-        }
+        },
+        // ihadis.com-inspired palette (extracted from their CSS bundles).
+        // The look is a calm "sage / forest / parchment" Islamic heritage feel —
+        // not the bright emerald of the existing primary-green palette.
+        ihadis: {
+          // Primary deep green used for buttons, headings, hero gradient.
+          50:  '#eef5ee',
+          100: '#d9ebd9',
+          200: '#d5e4d5',
+          300: '#e0ebe0',
+          400: '#a7c9a7',
+          500: '#417e38',  // primary leaf green (CTA)
+          600: '#3d7b6f',  // deep teal-green (hover/active)
+          700: '#2f6157',  // forest green (dark accent)
+          800: '#1e241e',  // very dark green-black (body text on cream)
+          900: '#1c221c',
+        },
+        parchment: {
+          50:  '#fdfcf7',  // lightest cream (page background)
+          100: '#f7f3e8',  // warmer cream (card surface)
+          200: '#efe8dd',  // soft tan (section dividers)
+          300: '#e8dec3',  // sand (hadith card highlight)
+          400: '#d7d6be',  // muted sand
+          500: '#97724e',  // earthy brown (links/icons)
+          600: '#5d4630',  // deep brown
+        },
+        ink: {
+          900: '#161615',  // body text on light
+          800: '#1A1A19',
+          700: '#1d1d1d',
+          600: '#353934',
+          500: '#292D28',
+        },
+        hadith: '#2f6157', // accent for Arabic / hadith-style content
+        accent: {
+          gold: '#FFD700',
+          red:  '#F04438',
+          amber: '#f59e0b',
+          rose: '#e44244',
+        },
+        // ----------------------------------------------------------------
+        // THEME TOKENS — driven by CSS variables defined in index.css.
+        // Each theme (teal-amber, purple-teal, green-coral, blue-amber)
+        // sets --brand-primary, --brand-light, --brand-deep, etc. so
+        // every page can use the same `bg-brand-primary` / `text-ink-body`
+        // classes and just switch the data-theme on <html>.
+        // ----------------------------------------------------------------
+        brand: {
+          // Filled with `var(--brand-primary)` etc. at runtime; the hex
+          // values below are the default (teal-amber) values so SSR /
+          // unstyled pre-hydration flash still looks sensible.
+          primary:    'var(--brand-primary)',
+          'primary-soft': 'var(--brand-primary-soft)',
+          'primary-fill': 'var(--brand-primary-fill)',
+          light:      'var(--brand-light)',
+          mid:        'var(--brand-mid)',
+          deep:       'var(--brand-deep)',
+          // Accent (streak / highlight) — usually amber across themes.
+          accent:     'var(--accent)',
+          'accent-soft': 'var(--accent-soft)',
+          // Completed-state semantic colour.
+          completed:  'var(--completed)',
+          'completed-fill': 'var(--completed-fill)',
+          'completed-soft': 'var(--completed-soft)',
+          // Missed / warning colour.
+          missed:     'var(--missed)',
+          'missed-soft': 'var(--missed-soft)',
+        },
+        surface: {
+          page:       'var(--surface-page)',
+          card:       'var(--surface-card)',
+          'card-strong': 'var(--surface-card-strong)',
+          tab:        'var(--surface-tab)',
+          'tab-active': 'var(--surface-tab-active)',
+          hover:      'var(--surface-hover)',
+        },
+        edge: {
+          soft:       'var(--edge-soft)',
+          strong:     'var(--edge-strong)',
+          focus:      'var(--edge-focus)',
+        },
+        text: {
+          // Theme-aware ink colours. Using `currentColor` would be nicer
+          // but Tailwind requires a real value, so we wire each through
+          // its CSS var so the same class reads the right hex per theme.
+          body:       'var(--text-body)',
+          strong:     'var(--text-strong)',
+          muted:      'var(--text-muted)',
+          inverse:    'var(--text-inverse)',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

@@ -12,6 +12,13 @@ class ChallengeBase(BaseModel):
     icon: Optional[str] = None
     reward: Optional[str] = None
     notification_time: Optional[str] = None
+    level: int = 1
+    prerequisite_challenge_id: Optional[str] = None
+    challenge_type: str = "streak"
+    position: int = 1
+    streak_target: Optional[int] = None
+    reward_tier: Optional[str] = None
+    dua_reminder: Optional[str] = None
 
 class ChallengeCreate(ChallengeBase):
     id: str
@@ -76,6 +83,51 @@ class UserChallengeDetailedResponse(BaseModel):
     challenge: ChallengeResponse
     progress: UserChallengeProgressResponse
     completions: list[ChallengeCompletionResponse]
-    
+
+    class Config:
+        from_attributes = True
+
+
+# ── Hadith library ────────────────────────────────────────────────────────
+
+class HadithBase(BaseModel):
+    text_en: str
+    source: Optional[str] = None
+    context: Optional[str] = None
+    level: Optional[int] = None
+
+
+class HadithResponse(HadithBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ── Reward system ────────────────────────────────────────────────────────
+
+class RewardBase(BaseModel):
+    id: str
+    name_en: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    tier: str
+    reward_kind: str  # badge / frame / title / theme
+    challenge_id: Optional[str] = None
+    level: Optional[int] = None
+
+
+class RewardResponse(RewardBase):
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class UserRewardResponse(BaseModel):
+    id: int
+    reward_id: str
+    unlocked_at: Optional[str] = None
+
     class Config:
         from_attributes = True

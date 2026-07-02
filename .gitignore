@@ -46,3 +46,20 @@ yarn-error.log*
 # Build
 build/
 coverage/
+
+# Server / dev runner logs (uvicorn, vite, esbuild)
+backend/uvicorn.err
+backend/uvicorn.out
+frontend/vite.err
+backend/_*.py
+debug.js
+fix_*.js
+fix_*.ps1
+
+# Stray clipboard paste files
+backend/app/core/Pasted Image
+backend/app/core/Pasted*
+
+# TypeScript / Vite build artifacts
+*.tsbuildinfo
+frontend/vite.config.d.ts

@@ -20,40 +20,69 @@ export const Modal = ({
   if (!isOpen) return null
 
   const sizeClasses = {
-    sm: 'w-96',
-    md: 'w-full md:w-2xl',
-    lg: 'w-full md:w-4xl',
-    xl: 'w-full md:w-5xl',
+    sm: 'w-full max-w-sm',
+    md: 'w-full max-w-md',
+    lg: 'w-full max-w-lg',
+    xl: 'w-full max-w-2xl',
   }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div className="flex items-center justify-center min-h-screen px-4 py-6 text-center sm:p-0">
         {/* Background overlay */}
         <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 transition-opacity"
+          style={{ background: 'rgba(8, 24, 18, 0.65)', backdropFilter: 'blur(4px)' }}
           onClick={onClose}
         />
 
         {/* Modal */}
-        <div className={`relative inline-block align-bottom bg-white dark:bg-gray-900 rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:align-middle ${sizeClasses[size]} my-8`}>
+        <div
+          className={`relative inline-block align-bottom rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:align-middle ${sizeClasses[size]} my-4 max-h-[90vh] flex flex-col`}
+          style={{
+            background:
+              'linear-gradient(180deg, var(--manuscript-cream) 0%, var(--manuscript-cream-2) 100%)',
+            border: '1px solid var(--gold-mid)',
+            boxShadow:
+              '0 24px 64px -16px rgba(0,0,0,0.55), 0 0 0 1px var(--gold-deep) inset',
+          }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+          <div
+            className="flex items-center justify-between px-5 py-3 shrink-0"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+              borderBottom: '1px solid var(--gold-deep)',
+            }}
+          >
+            <h3
+              className="text-base font-bold"
+              style={{
+                color: 'var(--emerald-deep)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+                letterSpacing: '0.02em',
+              }}
+            >
               {title}
             </h3>
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="transition-colors"
+                style={{ color: 'var(--emerald-deep)' }}
+                aria-label="Close"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             )}
           </div>
 
           {/* Content */}
-          <div className="px-6 py-4">
+          <div
+            className="px-5 py-3 overflow-y-auto"
+            style={{ color: 'var(--emerald-deep)' }}
+          >
             {children}
           </div>
         </div>

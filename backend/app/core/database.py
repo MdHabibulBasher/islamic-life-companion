@@ -1,18 +1,23 @@
+"""Database engine and session factory.
+
+PostgreSQL-only. DATABASE_URL is expected to look like:
+    postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
+"""
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from .config import settings
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from app.core.config import settings
 
 engine = create_engine(
     settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
+    pool_pre_ping=True,  # detect dropped connections in long-running workers
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-# Dependency to get DB session
+
 def get_db():
     db = SessionLocal()
     try:

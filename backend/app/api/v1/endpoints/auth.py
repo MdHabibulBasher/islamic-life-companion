@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, SignupRequest, TokenResponse, UserResponse
+from app.schemas.auth import LoginRequest, SignupRequest, TokenResponse, UserResponse, RefreshTokenRequest
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -102,10 +102,10 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(refresh_token: str, db: Session = Depends(get_db)):
+def refresh(request: RefreshTokenRequest, db: Session = Depends(get_db)):
     """Refresh access token"""
     try:
-        payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(request.refresh_token, settings.SECRET_KEY, algorithms=["HS256"])
         user_id = payload.get("sub")
         
         if not user_id:
