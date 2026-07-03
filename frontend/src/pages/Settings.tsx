@@ -13,6 +13,7 @@ import {
   EyeOff,
   Info,
   Palette,
+  Moon,
 } from 'lucide-react'
 import { Button, Input, Select } from '../components/Form'
 import { useAuthStore } from '../store/authStore'
@@ -25,6 +26,13 @@ import {
   PageHeader,
   GoldDivider,
 } from '../components/IslamicOrnamentBG'
+import {
+  prayerTrackingService,
+  type PrayerSettings as PrayerTrackerSettings,
+  type PrayerSettingsUpdate,
+  CalculationMethod,
+  JuristicMethod,
+} from '../services/prayerTrackingService'
 
 interface UserProfile {
   id: number
@@ -64,7 +72,7 @@ interface UserPreferences {
   hijri_offset: number
 }
 
-type Tab = 'profile' | 'notifications' | 'preferences' | 'appearance' | 'security'
+type Tab = 'profile' | 'notifications' | 'preferences' | 'prayer' | 'appearance' | 'security'
 
 export const UserSettings: React.FC = () => {
   const queryClient = useQueryClient()
@@ -77,6 +85,7 @@ export const UserSettings: React.FC = () => {
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [prefs, setPrefs] = useState<UserPreferences | null>(null)
+  const [prayerSettings, setPrayerSettings] = useState<PrayerTrackerSettings | null>(null)
 
   // Password change form
   const [showCurrentPw, setShowCurrentPw] = useState(false)
@@ -95,6 +104,11 @@ export const UserSettings: React.FC = () => {
     queryFn: async () => (await api.get('/user/preferences')).data,
   })
 
+  const prayerSettingsQuery = useQuery<PrayerTrackerSettings>({
+    queryKey: ['prayerSettings'],
+    queryFn: () => prayerTrackingService.getSettings(),
+  })
+
   useEffect(() => {
     if (profileQuery.data) setProfile(profileQuery.data)
   }, [profileQuery.data])
@@ -102,6 +116,10 @@ export const UserSettings: React.FC = () => {
   useEffect(() => {
     if (prefsQuery.data) setPrefs(prefsQuery.data)
   }, [prefsQuery.data])
+
+  useEffect(() => {
+    if (prayerSettingsQuery.data) setPrayerSettings(prayerSettingsQuery.data)
+  }, [prayerSettingsQuery.data])
 
   const updateProfileMutation = useMutation({
     mutationFn: async (payload: Partial<UserProfile>) =>
@@ -134,6 +152,19 @@ export const UserSettings: React.FC = () => {
     },
     onError: (err: { response?: { data?: { detail?: string } } }) => {
       showError(err?.response?.data?.detail ?? 'Failed to update preferences')
+    },
+  })
+
+  const updatePrayerSettingsMutation = useMutation({
+    mutationFn: (payload: PrayerSettingsUpdate) =>
+      prayerTrackingService.updateSettings(payload),
+    onSuccess: (data: PrayerTrackerSettings) => {
+      queryClient.invalidateQueries({ queryKey: ['prayerSettings'] })
+      setPrayerSettings(data)
+      success('Prayer settings updated')
+    },
+    onError: (err: { response?: { data?: { detail?: string } } }) => {
+      showError(err?.response?.data?.detail ?? 'Failed to update prayer settings')
     },
   })
 
@@ -204,6 +235,27 @@ export const UserSettings: React.FC = () => {
     })
   }
 
+  const handlePrayerSettingToggle = (
+    field: 'notifications_enabled' | 'track_jamaaah' | 'track_qada',
+  ) => {
+    if (!prayerSettings) return
+    const updated = { ...prayerSettings, [field]: !prayerSettings[field] }
+    setPrayerSettings(updated)
+    updatePrayerSettingsMutation.mutate({ [field]: updated[field] })
+  }
+
+  const handleSavePrayerSettings = () => {
+    if (!prayerSettings) return
+    updatePrayerSettingsMutation.mutate({
+      calculation_method: prayerSettings.calculation_method,
+      juristic_method: prayerSettings.juristic_method,
+      reminder_minutes_before: prayerSettings.reminder_minutes_before,
+      track_jamaaah: prayerSettings.track_jamaaah,
+      track_qada: prayerSettings.track_qada,
+      notifications_enabled: prayerSettings.notifications_enabled,
+    })
+  }
+
   const handleChangePassword = () => {
     if (!currentPw || !newPw) {
       showError('Please fill in both password fields')
@@ -224,10 +276,12 @@ export const UserSettings: React.FC = () => {
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'preferences', label: 'Preferences', icon: SettingsIcon },
+    { id: 'prayer', label: 'Prayer', icon: Moon },
     { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'security', label: 'Security', icon: Lock },
   ]
 
-  if (profileQuery.isError || prefsQuery.isError) {
+  if (profileQuery.isError || prefsQuery.isError || prayerSettingsQuery.isError) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <OrnateCard topBar corners="all" className="!p-6 flex items-center gap-2">
@@ -240,7 +294,7 @@ export const UserSettings: React.FC = () => {
     )
   }
 
-  if (!profile || !prefs) {
+  if (!profile || !prefs || !prayerSettings) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <p style={{ color: 'var(--gold-deep)' }}>Loading…</p>
@@ -522,6 +576,115 @@ export const UserSettings: React.FC = () => {
             >
               <Save className="w-4 h-4" />
               {updatePrefsMutation.isPending ? 'Saving…' : 'Save Preferences'}
+            </Button>
+          </div>
+        )}
+
+        {activeTab === 'prayer' && (
+          <div className="space-y-6">
+            <h2
+              className="text-2xl font-bold"
+              style={{
+                color: 'var(--emerald-deep)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              Prayer Tracker Settings
+            </h2>
+            <p className="text-sm" style={{ color: 'var(--gold-deep)' }}>
+              Configure how prayer times are calculated and what you track.
+            </p>
+
+            <div className="space-y-4">
+              <Select
+                label="Calculation Method"
+                value={prayerSettings.calculation_method}
+                onChange={(e) =>
+                  setPrayerSettings({
+                    ...prayerSettings,
+                    calculation_method: e.target.value as CalculationMethod,
+                  })
+                }
+                options={[
+                  { value: CalculationMethod.ISNA, label: 'ISNA (North America)' },
+                  { value: CalculationMethod.MWL, label: 'Muslim World League' },
+                  { value: CalculationMethod.EGYPT, label: 'Egyptian General Authority' },
+                  { value: CalculationMethod.KARACHI, label: 'Karachi' },
+                  { value: CalculationMethod.MAKKAH, label: 'Umm al-Qura (Makkah)' },
+                  { value: CalculationMethod.CUSTOM, label: 'Custom (advanced)' },
+                ]}
+              />
+
+              <Select
+                label="Juristic Method (Asr)"
+                value={prayerSettings.juristic_method}
+                onChange={(e) =>
+                  setPrayerSettings({
+                    ...prayerSettings,
+                    juristic_method: e.target.value as JuristicMethod,
+                  })
+                }
+                options={[
+                  { value: JuristicMethod.SHAFI, label: 'Shafi (earlier Asr)' },
+                  { value: JuristicMethod.HANAFI, label: 'Hanafi (later Asr)' },
+                ]}
+              />
+
+              <div>
+                <label
+                  className="block text-sm font-semibold mb-2"
+                  style={{
+                    color: 'var(--emerald-deep)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  Reminder minutes before prayer
+                </label>
+                <Input
+                  type="number"
+                  value={prayerSettings.reminder_minutes_before}
+                  onChange={(e) =>
+                    setPrayerSettings({
+                      ...prayerSettings,
+                      reminder_minutes_before: Number(e.target.value),
+                    })
+                  }
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--gold-deep)', opacity: 0.7 }}>
+                  0–60 minutes. Set to 0 to disable reminders.
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <ToggleRow
+                  label="Prayer Notifications"
+                  description="Receive prayer-time alerts"
+                  checked={prayerSettings.notifications_enabled}
+                  onChange={() => handlePrayerSettingToggle('notifications_enabled')}
+                />
+                <ToggleRow
+                  label="Track Jamaa'ah"
+                  description="Mark prayers prayed in congregation"
+                  checked={prayerSettings.track_jamaaah}
+                  onChange={() => handlePrayerSettingToggle('track_jamaaah')}
+                />
+                <ToggleRow
+                  label="Track Qada"
+                  description="Track missed/makeup prayers"
+                  checked={prayerSettings.track_qada}
+                  onChange={() => handlePrayerSettingToggle('track_qada')}
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSavePrayerSettings}
+              variant="primary"
+              disabled={updatePrayerSettingsMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              {updatePrayerSettingsMutation.isPending ? 'Saving…' : 'Save Prayer Settings'}
             </Button>
           </div>
         )}

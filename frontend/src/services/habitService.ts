@@ -70,6 +70,23 @@ export interface DailyHabitSummary {
   created_at: string
 }
 
+export interface HabitRangeDayPoint {
+  date: string
+  total_habits: number
+  completed_habits: number
+  completion_rate: number
+}
+
+export interface HabitRangeSummary {
+  start: string
+  end: string
+  days_in_range: number
+  total_habits: number
+  completed_habits: number
+  completion_rate: number
+  per_day: HabitRangeDayPoint[]
+}
+
 export interface CreateHabitData {
   category_id: number
   name: string
@@ -220,6 +237,14 @@ export const habitService = {
       console.error('Error fetching statistics:', error)
       throw error
     }
+  },
+
+  // Get habit completion across an arbitrary date range
+  getRangeSummary: async (start: string, end: string): Promise<HabitRangeSummary> => {
+    const r = await api.get<HabitRangeSummary>(`/habits/range-summary`, {
+      params: { start, end },
+    })
+    return r.data
   },
 
   // Get daily summary

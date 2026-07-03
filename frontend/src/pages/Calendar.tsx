@@ -12,7 +12,6 @@ import {
   Sparkles,
   Trash2,
   X,
-  Compass,
   ListChecks,
 } from 'lucide-react'
 import {
@@ -29,8 +28,6 @@ import {
   GoldDivider,
   OrnateCard,
 } from '../components/IslamicOrnamentBG'
-import LocationPicker from '../components/LocationPicker'
-
 /* ============================================================================
  * Islamic (Hijri) Calendar page — full catalog edition
  * ----------------------------------------------------------------------------
@@ -224,14 +221,6 @@ export const Calendar = () => {
       setActiveHijriMonth(month + 1)
     }
   }
-  const goToToday = () => {
-    if (todayQuery.data) {
-      setActiveHijriYear(todayQuery.data.hijriYear)
-      setActiveHijriMonth(todayQuery.data.hijriMonthNumber)
-      setViewMode('month')
-    }
-  }
-
   const isCurrentMonth =
     todayQuery.data != null &&
     todayQuery.data.hijriYear === year &&
@@ -297,7 +286,7 @@ export const Calendar = () => {
   })
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 py-8 md:pt-0">
+    <div className="max-w-[1400px] mx-auto px-4 py-8 md:pt-6">
       {/* ===== Hero / page header (Prayer Tracker style) ===== */}
       <OrnateCard
         variant="dark"
@@ -377,74 +366,25 @@ export const Calendar = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-5 shrink-0">
-            <div
-              className="flex flex-col items-center justify-center rounded-full shrink-0"
-              style={{
-                width: 110,
-                height: 110,
-                background:
-                  'radial-gradient(circle, rgba(240,199,94,0.18) 0%, transparent 70%)',
-                border: '1px solid var(--gold-mid)',
-              }}
-            >
-              <span
-                className="text-2xl font-bold tabular-nums leading-none"
-                style={{
-                  color: 'var(--manuscript-cream)',
-                  fontFamily: 'Georgia, "Times New Roman", serif',
-                }}
-              >
-                {todayQuery.data?.hijriDay ?? '—'}
-              </span>
-              <span
-                className="text-[10px] uppercase font-semibold mt-1"
-                style={{
-                  color: 'var(--gold-glow)',
-                  letterSpacing: '0.18em',
-                }}
-              >
-                day of month
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              <LocationPicker
-                onLocationChange={() => {
-                  // Hijri offset may have been auto-seeded — refetch today.
-                  queryClient.invalidateQueries({ queryKey: ['hijri-today'] })
-                  queryClient.invalidateQueries({ queryKey: ['islamic-events'] })
-                }}
-              />
+          <div className="flex items-center justify-center gap-5 shrink-0">
+            {isAdmin && (
               <button
-                onClick={goToToday}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border"
+                onClick={() => {
+                  setEditingEvent(null)
+                  setIsAdminPanelOpen(true)
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition border"
                 style={{
-                  background: 'rgba(251,243,223,0.10)',
-                  color: 'var(--manuscript-cream)',
-                  borderColor: 'var(--gold-mid)',
+                  background:
+                    'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                  color: 'var(--emerald-deep)',
+                  border: '1px solid var(--gold-deep)',
+                  letterSpacing: '0.16em',
                 }}
               >
-                <Compass size={12} /> Jump to today
+                <Plus size={12} /> Admin · Add Event
               </button>
-              {isAdmin && (
-                <button
-                  onClick={() => {
-                    setEditingEvent(null)
-                    setIsAdminPanelOpen(true)
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition border"
-                  style={{
-                    background:
-                      'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
-                    color: 'var(--emerald-deep)',
-                    border: '1px solid var(--gold-deep)',
-                    letterSpacing: '0.16em',
-                  }}
-                >
-                  <Plus size={12} /> Admin · Add Event
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </OrnateCard>

@@ -1,6 +1,9 @@
 import { useCallback } from 'react'
 import { useAuthStore } from '../store/authStore'
 
+// Re-export the global location-sync hook for convenient imports.
+export { useLocationSync } from './useLocationSync'
+
 /**
  * Custom hook to check if user is authenticated
  */

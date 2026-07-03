@@ -15,8 +15,11 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../hooks'
+import { useLocationSync } from '../hooks/useLocationSync'
 import { CompactThemeSwitcher } from './ThemeSwitcher'
 import { Star8, GoldDivider } from './IslamicOrnamentBG'
+import { LocationPicker } from './LocationPicker'
+import Logo from '../assets/Logo.png'
 
 /**
  * TopNav (Royal Manuscript Edition)
@@ -40,6 +43,7 @@ export const TopNav = () => {
   const { isAuthenticated, logout } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
   const location = useLocation()
+  const syncLocation = useLocationSync()
 
   const mainItems = [
     { label: 'Dashboard', href: '/', icon: Home },
@@ -99,14 +103,18 @@ export const TopNav = () => {
             className="flex items-center gap-3 hover:opacity-90 transition shrink-0 group"
           >
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md transition group-hover:scale-105"
+              className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md transition group-hover:scale-105 overflow-hidden"
               style={{
                 background:
                   'linear-gradient(135deg, var(--emerald-deep) 0%, var(--surface-deep-2) 100%)',
                 border: '1px solid var(--gold-mid)',
               }}
             >
-              <span className="text-2xl">🕌</span>
+              <img
+                src={Logo}
+                alt="Islamic Life Companion"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="flex flex-col leading-tight">
               <span
@@ -174,8 +182,9 @@ export const TopNav = () => {
             </div>
           </nav>
 
-          {/* Right side — theme switcher + logout */}
+          {/* Right side — location + theme switcher + logout */}
           <div className="flex items-center gap-2 shrink-0">
+            <LocationPicker compact onLocationChange={syncLocation} />
             <CompactThemeSwitcher />
             <button
               onClick={logout}
@@ -217,14 +226,18 @@ export const TopNav = () => {
         <div className="flex items-center justify-between gap-2 px-4 py-2.5">
           <Link to="/" className="flex items-center gap-2.5">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
               style={{
                 background:
                   'linear-gradient(135deg, var(--emerald-deep) 0%, var(--surface-deep-2) 100%)',
                 border: '1px solid var(--gold-mid)',
               }}
             >
-              <span className="text-xl">🕌</span>
+              <img
+                src={Logo}
+                alt="Islamic Life Companion"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="flex flex-col leading-tight">
               <span
@@ -242,6 +255,7 @@ export const TopNav = () => {
             </div>
           </Link>
           <div className="flex items-center gap-1.5">
+            <LocationPicker compact onLocationChange={syncLocation} />
             <CompactThemeSwitcher />
             <button
               onClick={() => setShowMenu(!showMenu)}

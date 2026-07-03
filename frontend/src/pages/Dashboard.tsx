@@ -491,7 +491,7 @@ const LiveClock: React.FC<{ now: Date }> = ({ now }) => {
   return (
     <div className="text-center">
       <div
-        className="rounded-full flex flex-col items-center justify-center"
+        className="rounded-2xl flex flex-col items-center justify-center"
         style={{
           width: 180,
           height: 180,

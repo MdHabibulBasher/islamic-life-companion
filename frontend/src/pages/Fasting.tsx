@@ -13,7 +13,8 @@
 //
 // Sadaqah default currency is TK (Bangladeshi Taka).
 // ============================================================================
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import ReactDOM from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft,
@@ -27,15 +28,13 @@ import {
   Save,
   Loader2,
   X,
-  Compass,
   CalendarDays,
-  Grid3x3,
   Moon,
   Filter,
   Info,
   Clock,
   Plus,
-  ListChecks,
+  BookOpen,
 } from 'lucide-react'
 import { api } from '../services/api'
 import {
@@ -49,7 +48,6 @@ import {
   GoldDivider,
   OrnateCard,
 } from '../components/IslamicOrnamentBG'
-import LocationPicker from '../components/LocationPicker'
 
 // ----------------------------------------------------------------------------
 // Hijri calendar constants — same approximation the existing Calendar page uses
@@ -94,7 +92,6 @@ const FASTING_CATEGORIES = {
     color: '#10b981', // emerald-light
   },
 } as const
-type FastingCategory = keyof typeof FASTING_CATEGORIES
 
 function firstDayOfHijriMonth(hijriYear: number, hijriMonth: number): number {
   const REF_HIJRI_YEAR = 1446
@@ -103,6 +100,33 @@ function firstDayOfHijriMonth(hijriYear: number, hijriMonth: number): number {
   const monthDelta = hijriMonth - 1
   const totalDays = yearDelta * 354.37 + monthDelta * 29.5
   return ((REF_WEEKDAY + Math.round(totalDays)) % 7 + 7) % 7
+}
+
+// Server-calibrated first weekday of a Hijri month.  Uses today's Hijri
+// day + Gregorian date from the server to compute the weekday of day 1
+// of the given Hijri month.  Falls back to the rough estimate above if
+// we don't have server data or the month is different from today's.
+function calibratedFirstWeekday(
+  hijriYear: number,
+  hijriMonth: number,
+  todayHijriDay: number | undefined,
+  todayGregDate: string | undefined,
+  todayHijriYear: number | undefined,
+  todayHijriMonth: number | undefined
+): number {
+  if (
+    todayHijriDay != null &&
+    todayGregDate &&
+    todayHijriYear === hijriYear &&
+    todayHijriMonth === hijriMonth
+  ) {
+    // We're viewing the current month — compute day-1 weekday from today.
+    const todayMs = Date.parse(todayGregDate + 'T00:00:00Z')
+    const day1Ms = todayMs - (todayHijriDay - 1) * 24 * 60 * 60 * 1000
+    const d = new Date(day1Ms)
+    return d.getUTCDay()
+  }
+  return firstDayOfHijriMonth(hijriYear, hijriMonth)
 }
 
 // Map a (Hijri year, Hijri month, Hijri day) to an approximate ISO date.
@@ -126,6 +150,30 @@ function approximateGregorianDate(
   const ms = ANCHOR_GREGORIAN_MS + deltaDays * 24 * 60 * 60 * 1000
   const d = new Date(ms)
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
+
+// Server-calibrated Gregorian date for a Hijri day in the current month.
+// Uses today's Hijri day + Gregorian date (from the /prayer-times/islamic-date
+// endpoint) as an anchor, so the offset is always exact for the visible month.
+// Falls back to the rough approximateGregorianDate() if we don't have the
+// server anchor yet (e.g. still loading).
+function calibratedGregorianDate(
+  hijriDay: number,
+  todayHijriDay: number | undefined,
+  todayGregDate: string | undefined,
+  hijriYear: number,
+  hijriMonth: number
+): string {
+  if (todayHijriDay != null && todayGregDate) {
+    // Compute delta from today's Hijri day, then add/subtract that many
+    // Gregorian days from today's Gregorian date.
+    const delta = hijriDay - todayHijriDay
+    const todayMs = Date.parse(todayGregDate + 'T00:00:00Z')
+    const targetMs = todayMs + delta * 24 * 60 * 60 * 1000
+    const d = new Date(targetMs)
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+  }
+  return approximateGregorianDate(hijriYear, hijriMonth, hijriDay)
 }
 
 function daysSinceAnchorHijri(y: number, m: number, d: number): number {
@@ -360,6 +408,20 @@ const DayEditor: React.FC<DayEditorProps> = ({
         ? 'White day (13/14/15)'
         : 'Voluntary / other'
 
+  // Pick a relevant knowledge-base topic for this day (if any).
+  const dayKnowledge = useMemo(() => {
+    if (isRamadan) {
+      return ALL_TOPICS.find((t) => t.id === 'RM001') ?? null
+    }
+    if (isMonThu) {
+      return ALL_TOPICS.find((t) => t.id === 'WK003') ?? null
+    }
+    if (isWhiteDay) {
+      return ALL_TOPICS.find((t) => t.id === 'WD001') ?? null
+    }
+    return null
+  }, [isRamadan, isMonThu, isWhiteDay])
+
   return (
     <div
       className="absolute z-20 rounded-xl !p-4 w-[320px] sm:w-[360px]"
@@ -386,7 +448,7 @@ const DayEditor: React.FC<DayEditorProps> = ({
               letterSpacing: '0.18em',
             }}
           >
-            {hijriDay} {hijriMonthName ?? ''} · {dayType}
+            {hijriDay} {hijriMonthName ?? ''}
           </p>
           <h2
             className="text-base font-bold mt-0.5 truncate"
@@ -446,17 +508,6 @@ const DayEditor: React.FC<DayEditorProps> = ({
               }}
             >
               {fasted ? 'Fasted ✓' : 'Mark as fasted'}
-            </div>
-            <div
-              className="text-[10px] uppercase font-bold"
-              style={{
-                color: fasted
-                  ? 'var(--emerald-deep, #064e3b)'
-                  : 'var(--gold-mid, #d4a017)',
-                letterSpacing: '0.14em',
-              }}
-            >
-              {dayType}
             </div>
           </div>
         </div>
@@ -574,6 +625,60 @@ const DayEditor: React.FC<DayEditorProps> = ({
         />
       </div>
 
+      {/* Learn — context-aware knowledge hint */}
+      {dayKnowledge && (
+        <details className="mt-2.5">
+          <summary
+            className="cursor-pointer font-bold uppercase text-[10px] flex items-center gap-1.5"
+            style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+          >
+            <BookOpen size={10} /> Learn
+          </summary>
+          <div
+            className="mt-1.5 rounded-lg p-2"
+            style={{
+              background: 'rgba(0, 0, 0, 0.30)',
+              border: '1px solid var(--gold-deep, #9a6b0e)',
+            }}
+          >
+            <p
+              className="text-[11px] font-bold"
+              style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+            >
+              {dayKnowledge.title}
+            </p>
+            {dayKnowledge.virtue && (
+              <p
+                className="text-[10px] mt-1 leading-relaxed"
+                style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.85 }}
+              >
+                <span
+                  className="font-bold uppercase mr-1"
+                  style={{ color: 'var(--gold-mid, #d4a017)' }}
+                >
+                  Virtue:
+                </span>
+                {dayKnowledge.virtue}
+              </p>
+            )}
+            <p
+              className="text-[10px] mt-1 cursor-pointer inline-block"
+              style={{ color: 'var(--gold-light, #f0c75e)' }}
+              onClick={() => {
+                onClose()
+                // Defer to next tick so DayEditor unmounts first
+                setTimeout(() => {
+                  const ev = new CustomEvent('open-knowledge-topic', { detail: dayKnowledge })
+                  window.dispatchEvent(ev)
+                }, 0)
+              }}
+            >
+              View full knowledge →
+            </p>
+          </div>
+        </details>
+      )}
+
       {/* Actions */}
       <div className="mt-3 flex items-center justify-between gap-2">
         <button
@@ -664,78 +769,60 @@ const StatTile: React.FC<{
 )
 
 // ============================================================================
-// Events list view — mirrors the Calendar page's ListView exactly
+// Knowledge view + detail modal (mirrors Calendar.tsx ListView + EventDetailModal)
 // ============================================================================
-interface EventsViewProps {
-  entries: FastingEntry[]
-  activeCategory: FastingCategory | null
-  onCategoryChange: (cat: FastingCategory | null) => void
-  onEntryClick: (entry: FastingEntry) => void
-}
+import {
+  KNOWLEDGE_CATEGORIES,
+  TOPICS_BY_CATEGORY,
+  ALL_TOPICS,
+  RULING_META,
+  HADITH_INDEX,
+  QURAN_REFS,
+  MADHHAB_GROUPS,
+  parseRefCodes,
+  gradeColor,
+  getCategoryMeta,
+  getOccasionsForHijriDay,
+  type KnowledgeCategoryId,
+  type KnowledgeTopic,
+} from '../data/fastingKnowledge'
 
-const EventsView: React.FC<EventsViewProps> = ({
-  entries,
-  activeCategory,
-  onCategoryChange,
-  onEntryClick,
-}) => {
-  // Categorise each entry: an entry can have multiple categories; we use the
-  // "first matching" rule so an entry appears in exactly one filter chip.
-  const categoryForEntry = (e: FastingEntry): FastingCategory[] => {
-    const cats: FastingCategory[] = []
-    if (e.fasted) cats.push('fasted')
-    if (e.is_ramadan) cats.push('ramadan')
-    if (e.is_monday_thursday || e.is_white_day) cats.push('sunnah')
-    if ((e.donation_amount ?? 0) > 0) cats.push('donation')
-    if (e.good_deed_done) cats.push('good_deed')
-    return cats
-  }
+const KN_PAGE_SIZE = 20
 
-  const counts = useMemo(() => {
-    const c: Record<FastingCategory, number> = {
-      fasted: 0,
-      ramadan: 0,
-      sunnah: 0,
-      donation: 0,
-      good_deed: 0,
-    }
-    for (const e of entries) {
-      for (const cat of categoryForEntry(e)) c[cat]++
-    }
-    return c
-  }, [entries])
+const KnowledgeView: React.FC<{
+  activeCategory: KnowledgeCategoryId | null
+  onCategoryChange: (cat: KnowledgeCategoryId | null) => void
+  onTopicClick: (topic: KnowledgeTopic) => void
+}> = ({ activeCategory, onCategoryChange, onTopicClick }) => {
+  const [page, setPage] = useState(1)
 
-  const filtered = useMemo(() => {
-    if (!activeCategory) return entries
-    return entries.filter((e) => categoryForEntry(e).includes(activeCategory))
-  }, [entries, activeCategory])
+  // Reset to page 1 on filter change
+  useEffect(() => {
+    setPage(1)
+  }, [activeCategory])
 
-  // Group filtered entries by Hijri month for display.
+  const filtered = activeCategory
+    ? TOPICS_BY_CATEGORY[activeCategory]
+    : ALL_TOPICS
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / KN_PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const start = (safePage - 1) * KN_PAGE_SIZE
+  const pageTopics = filtered.slice(start, start + KN_PAGE_SIZE)
+
+  // Group page topics by category (so "All" still shows category headers)
   const grouped = useMemo(() => {
-    const map = new Map<number, FastingEntry[]>()
-    for (const e of filtered) {
-      // Skip rows that don't have a usable Hijri month.
-      if (e.hijri_month == null) continue
-      const m = e.hijri_month
-      if (!map.has(m)) map.set(m, [])
-      map.get(m)!.push(e)
-    }
-    for (const [, list] of map) {
-      list.sort((a, b) => (a.hijri_day ?? 0) - (b.hijri_day ?? 0))
+    const map = new Map<KnowledgeCategoryId, KnowledgeTopic[]>()
+    for (const t of pageTopics) {
+      if (!map.has(t.categoryId)) map.set(t.categoryId, [])
+      map.get(t.categoryId)!.push(t)
     }
     return map
-  }, [filtered])
+  }, [pageTopics])
 
   return (
-    <div
-      className="rounded-xl !p-6"
-      style={{
-        background:
-          'linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%)',
-        border: '1px solid var(--gold-mid, #d4a017)',
-      }}
-    >
-      {/* Filter chips */}
+    <div>
+      {/* ===== Filter chips ===== */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <Filter size={14} style={{ color: 'var(--gold-mid, #d4a017)' }} />
         <span
@@ -764,23 +851,23 @@ const EventsView: React.FC<EventsViewProps> = ({
                 }
           }
         >
-          All ({entries.length})
+          All ({ALL_TOPICS.length})
         </button>
-        {(Object.keys(FASTING_CATEGORIES) as FastingCategory[]).map((cat) => {
-          const meta = FASTING_CATEGORIES[cat]
-          const count = counts[cat]
-          const active = activeCategory === cat
+        {KNOWLEDGE_CATEGORIES.map((c) => {
+          const count = TOPICS_BY_CATEGORY[c.id].length
+          const Icon = c.icon
+          const active = activeCategory === c.id
           return (
             <button
-              key={cat}
-              onClick={() => onCategoryChange(active ? null : cat)}
+              key={c.id}
+              onClick={() => onCategoryChange(active ? null : c.id)}
               className="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold transition inline-flex items-center gap-1.5"
               style={
                 active
                   ? {
-                      background: meta.color,
+                      background: c.color,
                       color: '#ffffff',
-                      border: `1px solid ${meta.color}`,
+                      border: `1px solid ${c.color}`,
                       letterSpacing: '0.18em',
                     }
                   : {
@@ -791,11 +878,8 @@ const EventsView: React.FC<EventsViewProps> = ({
                     }
               }
             >
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ background: meta.color }}
-              />
-              {meta.label} ({count})
+              <Icon size={10} />
+              {c.shortLabel} ({count})
             </button>
           )
         })}
@@ -805,20 +889,13 @@ const EventsView: React.FC<EventsViewProps> = ({
         <GoldDivider />
       </div>
 
-      {filtered.length === 0 ? (
-        <p
-          className="text-sm uppercase font-bold text-center py-12"
-          style={{
-            color: 'var(--gold-mid, #d4a017)',
-            letterSpacing: '0.18em',
-          }}
-        >
-          No fasting events recorded yet.
-        </p>
-      ) : (
-        <div className="space-y-6">
-          {Array.from(grouped.entries()).map(([monthNum, monthEntries]) => (
-            <div key={monthNum}>
+      {/* ===== Grouped cards ===== */}
+      <div className="space-y-6">
+        {Array.from(grouped.entries()).map(([catId, topics]) => {
+          const cat = getCategoryMeta(catId)
+          const Icon = cat.icon
+          return (
+            <div key={catId}>
               <h3
                 className="text-sm font-bold uppercase mb-3 flex items-center gap-2"
                 style={{
@@ -827,7 +904,8 @@ const EventsView: React.FC<EventsViewProps> = ({
                   letterSpacing: '0.14em',
                 }}
               >
-                {HIJRI_MONTHS_EN[monthNum - 1]}
+                <Icon size={14} style={{ color: cat.color }} />
+                {cat.label}
                 <span
                   className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                   style={{
@@ -837,105 +915,141 @@ const EventsView: React.FC<EventsViewProps> = ({
                     letterSpacing: '0.18em',
                   }}
                 >
-                  {monthEntries.length}
+                  {topics.length}
                 </span>
               </h3>
               <div className="space-y-2">
-                {monthEntries.map((e) => {
-                  const cats = categoryForEntry(e)
-                  const primary = cats[0] ?? 'fasted'
-                  const meta = FASTING_CATEGORIES[primary]
-                  const dateLabel = new Date(
-                    e.date + 'T00:00:00'
-                  ).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                  // Build a summary line: "Fasted · Sadaqah 100 TK · Good deed"
-                  const parts: string[] = []
-                  if (e.fasted) parts.push('Fasted')
-                  if (e.is_ramadan) parts.push('Ramadan')
-                  if (e.is_monday_thursday) parts.push('Sunnah (Mon/Thu)')
-                  if (e.is_white_day) parts.push('White day')
-                  if ((e.donation_amount ?? 0) > 0) {
-                    parts.push(
-                      `Sadaqah ${e.donation_amount} ${e.donation_currency ?? 'TK'}`
-                    )
-                  }
-                  if (e.good_deed_done && e.good_deed) parts.push(e.good_deed)
-                  const summary = parts.join(' · ')
+                {topics.map((t) => {
+                  const r = RULING_META[t.ruling]
                   return (
-                    <button
-                      key={e.id}
-                      onClick={() => onEntryClick(e)}
-                      className="w-full text-left rounded-xl p-4 flex items-center gap-4 transition hover:translate-x-0.5"
+                    <div
+                      key={t.id}
+                      className="rounded-xl p-4 flex items-center gap-4"
                       style={{
                         background:
                           'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%)',
                         border: '1px solid var(--gold-mid, #d4a017)',
                         borderLeftWidth: 4,
-                        borderLeftColor: meta.color,
+                        borderLeftColor: cat.color,
                       }}
                     >
                       <div
-                        className="w-10 h-10 rounded-full inline-flex items-center justify-center shrink-0 font-bold"
+                        className="w-10 h-10 rounded-full inline-flex items-center justify-center shrink-0"
                         style={{
                           background: 'rgba(0, 0, 0, 0.30)',
-                          color: 'var(--manuscript-cream, #fbf3df)',
-                          border: '1px solid var(--gold-mid, #d4a017)',
-                          fontFamily: 'Georgia, "Times New Roman", serif',
+                          color: cat.color,
+                          border: `1px solid ${cat.color}`,
                         }}
                       >
-                        {e.hijri_day}
+                        <Icon size={16} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          {cats.map((cat) => (
-                            <span
-                              key={cat}
-                              className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
-                              style={{
-                                background: `${FASTING_CATEGORIES[cat].color}33`,
-                                color: FASTING_CATEGORIES[cat].color,
-                                border: `1px solid ${FASTING_CATEGORIES[cat].color}`,
-                                letterSpacing: '0.18em',
-                              }}
-                            >
-                              {FASTING_CATEGORIES[cat].label}
-                            </span>
-                          ))}
-                          <span
-                            className="text-[10px] font-bold"
-                            style={{ color: 'var(--gold-mid, #d4a017)' }}
+                      <button
+                        onClick={() => onTopicClick(t)}
+                        className="flex-1 min-w-0 text-left"
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p
+                            className="font-bold"
+                            style={{
+                              color: 'var(--manuscript-cream, #fbf3df)',
+                              fontFamily: 'Georgia, "Times New Roman", serif',
+                            }}
                           >
-                            {e.hijri_day} {HIJRI_MONTHS_EN[monthNum - 1]}{' '}
-                            {e.hijri_year} AH
+                            {t.title}
+                          </p>
+                          <span
+                            className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                            style={{
+                              background: `${r.color}33`,
+                              color: r.color,
+                              border: `1px solid ${r.color}`,
+                              letterSpacing: '0.18em',
+                            }}
+                          >
+                            {r.label}
                           </span>
                         </div>
-                        <p
-                          className="font-bold text-base"
-                          style={{
-                            color: 'var(--manuscript-cream, #fbf3df)',
-                            fontFamily: 'Georgia, "Times New Roman", serif',
-                          }}
-                        >
-                          {summary || 'Fasting entry'}
-                        </p>
-                        <p
-                          className="text-xs mt-0.5"
-                          style={{ color: 'var(--gold-mid, #d4a017)' }}
-                        >
-                          {dateLabel}
-                        </p>
-                      </div>
-                    </button>
+                        {t.arabic && (
+                          <p
+                            className="text-sm mt-0.5"
+                            dir="rtl"
+                            style={{ color: 'var(--gold-mid, #d4a017)' }}
+                          >
+                            {t.arabic}
+                          </p>
+                        )}
+                        {t.meta && (
+                          <p
+                            className="text-[11px] mt-0.5"
+                            style={{ color: 'var(--gold-mid, #d4a017)', opacity: 0.85 }}
+                          >
+                            {t.meta}
+                          </p>
+                        )}
+                      </button>
+                    </div>
                   )
                 })}
               </div>
             </div>
-          ))}
+          )
+        })}
+
+        {filtered.length === 0 && (
+          <p
+            className="text-sm uppercase font-bold text-center py-8"
+            style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+          >
+            No knowledge topics in this category.
+          </p>
+        )}
+      </div>
+
+      {/* ===== Pagination ===== */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2 flex-wrap">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={safePage === 1}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: 'rgba(0, 0, 0, 0.30)',
+              color: 'var(--gold-mid, #d4a017)',
+              border: '1px solid var(--gold-mid, #d4a017)',
+              letterSpacing: '0.18em',
+            }}
+          >
+            <ChevronLeft size={14} /> Prev
+          </button>
+          <span
+            className="px-3 py-1.5 rounded-lg text-xs font-bold"
+            style={{
+              color: 'var(--manuscript-cream, #fbf3df)',
+              fontFamily: 'Georgia, "Times New Roman", serif',
+              letterSpacing: '0.14em',
+            }}
+          >
+            Page {safePage} / {totalPages}
+            <span
+              className="ml-2 text-[10px] uppercase"
+              style={{ color: 'var(--gold-mid, #d4a017)' }}
+            >
+              ({start + 1}–{Math.min(start + KN_PAGE_SIZE, filtered.length)} of {filtered.length})
+            </span>
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage === totalPages}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: 'rgba(0, 0, 0, 0.30)',
+              color: 'var(--gold-mid, #d4a017)',
+              border: '1px solid var(--gold-mid, #d4a017)',
+              letterSpacing: '0.18em',
+            }}
+          >
+            Next <ChevronRight size={14} />
+          </button>
         </div>
       )}
     </div>
@@ -943,12 +1057,578 @@ const EventsView: React.FC<EventsViewProps> = ({
 }
 
 // ============================================================================
+// Knowledge detail modal — expandable Hadith / Quran / Madhhab sections
+// ============================================================================
+const KnowledgeDetailModal: React.FC<{
+  topic: KnowledgeTopic
+  onClose: () => void
+}> = ({ topic, onClose }) => {
+  const cat = getCategoryMeta(topic.categoryId)
+  const r = RULING_META[topic.ruling]
+  const hadithCodes = parseRefCodes(topic.hadithRef, 'H')
+  const quranCodes = parseRefCodes(topic.quranRef, 'Q')
+  const madhCodes = parseRefCodes(topic.madhhabNote, 'MAD')
+  // For madhhab-sheet rows, the question group is already on the topic
+  const directGroup = topic.questionGroup
+
+  // Build ordered list of madhhab group keys to display
+  const madhhabGroupKeys = Array.from(
+    new Set([...madhCodes.map((c) => c.replace('MAD', '')), ...(directGroup ? [directGroup] : [])])
+  )
+
+  return (
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4"
+      style={{ background: 'rgba(8, 24, 18, 0.65)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl p-6 sm:p-8 max-w-3xl w-full"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%)',
+          border: '1px solid var(--gold-mid, #d4a017)',
+          borderTop: `4px solid ${cat.color}`,
+          boxShadow: '0 24px 48px -16px rgba(0, 0, 0, 0.6)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-start mb-4 gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: cat.color }}
+              />
+              <span
+                className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: `${r.color}33`,
+                  color: r.color,
+                  border: `1px solid ${r.color}`,
+                  letterSpacing: '0.18em',
+                }}
+              >
+                {r.label}
+              </span>
+              <span
+                className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: `${cat.color}33`,
+                  color: cat.color,
+                  border: `1px solid ${cat.color}`,
+                  letterSpacing: '0.18em',
+                }}
+              >
+                {cat.label}
+              </span>
+            </div>
+            <h2
+              className="text-2xl font-bold"
+              style={{
+                color: 'var(--manuscript-cream, #fbf3df)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              {topic.title}
+            </h2>
+            {topic.arabic && (
+              <p
+                className="text-base mt-1"
+                dir="rtl"
+                style={{
+                  color: 'var(--gold-mid, #d4a017)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {topic.arabic}
+              </p>
+            )}
+            {topic.meta && (
+              <p
+                className="text-xs mt-1"
+                style={{ color: 'var(--gold-mid, #d4a017)', opacity: 0.8 }}
+              >
+                {topic.meta}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1.5 rounded-lg transition shrink-0"
+            style={{
+              background: 'transparent',
+              color: 'var(--gold-mid, #d4a017)',
+              border: '1px solid var(--gold-mid, #d4a017)',
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div
+          className="text-sm mb-4 pb-4"
+          style={{
+            color: 'var(--gold-mid, #d4a017)',
+            borderBottom: '1px solid var(--gold-deep, #9a6b0e)',
+          }}
+        >
+          {topic.meta && <span>{topic.meta}</span>}
+        </div>
+
+        <div className="space-y-3">
+          {/* "Why / Reason" (primary description) */}
+          {topic.why && (
+            <div>
+              <p
+                className="text-[10px] uppercase font-bold mb-1"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Why / Background
+              </p>
+              <p
+                className="text-sm leading-relaxed"
+                style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+              >
+                {topic.why}
+              </p>
+            </div>
+          )}
+
+          {/* Virtue */}
+          {topic.virtue && (
+            <details open className="mt-2">
+              <summary
+                className="cursor-pointer font-bold uppercase text-[10px]"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Virtue
+              </summary>
+              <p
+                className="mt-2 text-sm leading-relaxed"
+                style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.92 }}
+              >
+                {topic.virtue}
+              </p>
+            </details>
+          )}
+
+          {/* Ruling detail (the meat of the topic) */}
+          {topic.rulingDetail && (
+            <details open className="mt-2">
+              <summary
+                className="cursor-pointer font-bold uppercase text-[10px]"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Ruling detail
+              </summary>
+              <p
+                className="mt-2 text-sm leading-relaxed"
+                style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.92 }}
+              >
+                {topic.rulingDetail}
+              </p>
+            </details>
+          )}
+
+          {/* Variant / narrator note */}
+          {topic.variantNote && (
+            <details className="mt-2">
+              <summary
+                className="cursor-pointer font-bold uppercase text-[10px]"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Variant / narrator note
+              </summary>
+              <p
+                className="mt-2 text-sm leading-relaxed"
+                style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.92 }}
+              >
+                {topic.variantNote}
+              </p>
+            </details>
+          )}
+
+          {/* Hadith references */}
+          {hadithCodes.length > 0 && (
+            <details className="mt-2">
+              <summary
+                className="cursor-pointer font-bold uppercase text-[10px]"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Hadith references ({hadithCodes.length})
+              </summary>
+              <div className="mt-2 space-y-2">
+                {hadithCodes.map((code) => {
+                  const h = HADITH_INDEX[code]
+                  if (!h) return null
+                  return (
+                    <div
+                      key={code}
+                      className="rounded-lg p-3"
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.30)',
+                        border: '1px solid var(--gold-deep, #9a6b0e)',
+                        borderTop: `3px solid ${gradeColor(h.grade)}`,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span
+                          className="text-[10px] font-bold uppercase"
+                          style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+                        >
+                          {h.id}
+                        </span>
+                        <span
+                          className="font-bold text-sm"
+                          style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+                        >
+                          {h.narrator}
+                        </span>
+                        <span
+                          className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                          style={{
+                            background: `${gradeColor(h.grade)}33`,
+                            color: gradeColor(h.grade),
+                            border: `1px solid ${gradeColor(h.grade)}`,
+                            letterSpacing: '0.18em',
+                          }}
+                        >
+                          {h.grade}
+                        </span>
+                      </div>
+                      <p
+                        className="text-[11px]"
+                        style={{ color: 'var(--gold-mid, #d4a017)' }}
+                      >
+                        {h.collection} — {h.referenceNumber}
+                      </p>
+                      <p
+                        className="text-sm mt-1 leading-relaxed"
+                        style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.92 }}
+                      >
+                        {h.summary}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </details>
+          )}
+
+          {/* Quran references */}
+          {quranCodes.length > 0 && (
+            <details className="mt-2">
+              <summary
+                className="cursor-pointer font-bold uppercase text-[10px]"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Qur'an references ({quranCodes.length})
+              </summary>
+              <div className="mt-2 space-y-2">
+                {quranCodes.map((code) => {
+                  const q = QURAN_REFS[code]
+                  if (!q) return null
+                  return (
+                    <div
+                      key={code}
+                      className="rounded-lg p-3"
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.30)',
+                        border: '1px solid var(--gold-deep, #9a6b0e)',
+                        borderTop: `3px solid #fbbf24`,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span
+                          className="text-[10px] font-bold uppercase"
+                          style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+                        >
+                          {q.id}
+                        </span>
+                        <span
+                          className="font-bold text-sm"
+                          style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+                        >
+                          {q.surah} {q.ayah}
+                        </span>
+                        <span
+                          className="text-[10px] uppercase"
+                          style={{ color: 'var(--gold-mid, #d4a017)' }}
+                        >
+                          · {q.topic}
+                        </span>
+                      </div>
+                      <p
+                        className="text-sm leading-relaxed"
+                        style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.92 }}
+                      >
+                        {q.summary}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </details>
+          )}
+
+          {/* Madhhab opinions */}
+          {madhhabGroupKeys.length > 0 && (
+            <details className="mt-2">
+              <summary
+                className="cursor-pointer font-bold uppercase text-[10px]"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Scholarly opinions ({madhhabGroupKeys.length} question group{madhhabGroupKeys.length > 1 ? 's' : ''})
+              </summary>
+              <div className="mt-2 space-y-3">
+                {madhhabGroupKeys.map((groupKey) => {
+                  const rows = MADHHAB_GROUPS[groupKey]
+                  if (!rows || rows.length === 0) return null
+                  const question = rows[0].question
+                  return (
+                    <div
+                      key={groupKey}
+                      className="rounded-lg p-3"
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.25)',
+                        border: '1px solid var(--gold-deep, #9a6b0e)',
+                      }}
+                    >
+                      <p
+                        className="text-[10px] font-bold uppercase mb-2"
+                        style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+                      >
+                        {groupKey} · {question}
+                      </p>
+                      <div className="space-y-2">
+                        {rows.map((row) => (
+                          <div
+                            key={row.id}
+                            className="rounded-md p-2"
+                            style={{
+                              background: 'rgba(0, 0, 0, 0.30)',
+                              borderLeft: `3px solid ${gradeColor('Contested')}`,
+                            }}
+                          >
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span
+                                className="text-[10px] font-bold uppercase"
+                                style={{ color: 'var(--manuscript-cream, #fbf3df)', letterSpacing: '0.18em' }}
+                              >
+                                {row.madhhab}
+                              </span>
+                              <span
+                                className="text-[10px]"
+                                style={{ color: 'var(--gold-mid, #d4a017)' }}
+                              >
+                                {row.id}
+                              </span>
+                            </div>
+                            <p
+                              className="text-sm leading-relaxed"
+                              style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.92 }}
+                            >
+                              {row.position}
+                            </p>
+                            <p
+                              className="text-[10px] mt-1"
+                              style={{ color: 'var(--gold-mid, #d4a017)', opacity: 0.7 }}
+                            >
+                              {row.sourceRef}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </details>
+          )}
+
+          {/* Hadith sheet row — show collection/grade inline */}
+          {topic.categoryId === 'hadiths' && topic.summary && (
+            <div>
+              <p
+                className="text-[10px] uppercase font-bold mb-1"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Paraphrased summary
+              </p>
+              <p
+                className="text-sm leading-relaxed"
+                style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+              >
+                {topic.summary}
+              </p>
+            </div>
+          )}
+
+          {/* Quran sheet row — show summary inline */}
+          {topic.categoryId === 'quran' && topic.summary && (
+            <div>
+              <p
+                className="text-[10px] uppercase font-bold mb-1"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                Paraphrased summary
+              </p>
+              <p
+                className="text-sm leading-relaxed"
+                style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+              >
+                {topic.summary}
+              </p>
+            </div>
+          )}
+
+          {/* Madhhab sheet row — show position inline (in case no group rendered) */}
+          {topic.categoryId === 'madhhabs' && topic.position && (
+            <div>
+              <p
+                className="text-[10px] uppercase font-bold mb-1"
+                style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
+              >
+                {topic.madhhab} position
+              </p>
+              <p
+                className="text-sm leading-relaxed"
+                style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+              >
+                {topic.position}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// MorePopover — fixed-position popover for "+N more" occasion overflow
+// ----------------------------------------------------------------------------
+// Renders at the viewport level (position: fixed) so it never gets clipped
+// or overlapped by sibling grid cells.  Computes the best position (above vs
+// below the trigger) based on available viewport space.
+// ============================================================================
+const MorePopover: React.FC<{
+  triggerRef: React.RefObject<HTMLElement>
+  occasions: KnowledgeTopic[]
+  onPick: (occ: KnowledgeTopic) => void
+  onClose: () => void
+}> = ({ triggerRef, occasions, onPick, onClose }) => {
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = useState<{
+    top: number
+    left: number
+    width: number
+    maxHeight: number
+  } | null>(null)
+
+  useLayoutEffect(() => {
+    const trigger = triggerRef.current
+    if (!trigger) return
+    const rect = trigger.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    const popoverHeight = Math.min(
+      220,
+      occasions.length * 30 + 16 // ~30px per item + padding
+    )
+    // Place below if there's room; otherwise flip up.
+    const placeBelow = spaceBelow >= popoverHeight + 8 || spaceBelow >= spaceAbove
+    const top = placeBelow
+      ? rect.bottom + 4
+      : Math.max(8, rect.top - popoverHeight - 4)
+    const maxHeight = placeBelow
+      ? Math.min(220, spaceBelow - 8)
+      : Math.min(220, spaceAbove - 8)
+    setCoords({
+      top,
+      left: rect.left,
+      width: Math.max(rect.width, 180),
+      maxHeight: Math.max(100, maxHeight),
+    })
+  }, [triggerRef, occasions.length])
+
+  // Close on outside click / Escape
+  useEffect(() => {
+    if (!coords) return
+    const onMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (popoverRef.current?.contains(t)) return
+      if (triggerRef.current?.contains(t)) return
+      onClose()
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [coords, onClose, triggerRef])
+
+  if (!coords) return null
+
+  return ReactDOM.createPortal(
+    <div
+      ref={popoverRef}
+      className="fixed z-50 rounded-md p-1.5 space-y-1"
+      style={{
+        top: coords.top,
+        left: coords.left,
+        width: coords.width,
+        maxHeight: coords.maxHeight,
+        overflowY: 'auto',
+        background:
+          'linear-gradient(180deg, rgba(8, 36, 28, 0.98) 0%, rgba(4, 22, 18, 0.98) 100%)',
+        border: '1px solid var(--gold-mid, #d4a017)',
+        boxShadow:
+          '0 8px 20px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(212, 160, 23, 0.25)',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {occasions.map((occ) => {
+        const r = RULING_META[occ.ruling]
+        return (
+          <button
+            key={occ.id}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onPick(occ)
+            }}
+            className="w-full text-left text-[10px] px-2 py-1 rounded-md font-bold uppercase truncate transition hover:translate-x-0.5"
+            style={{
+              background: `${r.color}33`,
+              color: 'var(--manuscript-cream, #fbf3df)',
+              border: `1px solid ${r.color}`,
+              letterSpacing: '0.10em',
+            }}
+            title={occ.title}
+          >
+            {occ.title}
+          </button>
+        )
+      })}
+    </div>,
+    document.body
+  )
+}
+
+// ============================================================================
 // Main page
 // ============================================================================
-type ViewMode = 'month' | 'year' | 'list'
+type ViewMode = 'month' | 'knowledge'
 
 export const Fasting: React.FC = () => {
-  const queryClient = useQueryClient()
   const { error: showError } = useToast()
   const todayStr = todayIso()
 
@@ -968,13 +1648,32 @@ export const Fasting: React.FC = () => {
     hijriDay: number
   } | null>(null)
 
-  // Events list filter.
-  const [eventsCategory, setEventsCategory] = useState<FastingCategory | null>(
-    null
-  )
+  // Knowledge view state (4th tab in segmented control)
+  const [knowledgeCategory, setKnowledgeCategory] = useState<KnowledgeCategoryId | null>(null)
+  const [selectedKnowledgeTopic, setSelectedKnowledgeTopic] = useState<KnowledgeTopic | null>(null)
 
-  // Year filter for events list (defaults to current year).
-  const [eventsYear, setEventsYear] = useState<number | null>(null)
+  // "more" popover state — tracks which day's overflow popover is open
+  const [morePopover, setMorePopover] = useState<{ gregDate: string; hijriDay: number } | null>(null)
+  // Ref to the trigger button element (set on click) for fixed positioning
+  const moreTriggerRef = useRef<HTMLElement | null>(null)
+
+  // Close the "more" popover on month change
+  useEffect(() => {
+    setMorePopover(null)
+  }, [activeYear, activeMonth])
+
+  // Listen for "open knowledge topic" events from the DayEditor "Learn" link
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<KnowledgeTopic>
+      if (ce.detail) {
+        setViewMode('knowledge')
+        setSelectedKnowledgeTopic(ce.detail)
+      }
+    }
+    window.addEventListener('open-knowledge-topic', handler as EventListener)
+    return () => window.removeEventListener('open-knowledge-topic', handler as EventListener)
+  }, [])
 
   // ----- "Today" query (Hijri + Gregorian) -----
   const todayQuery = useQuery<HijriToday>({
@@ -1014,15 +1713,9 @@ export const Fasting: React.FC = () => {
       setOnThisDayDay(todayQuery.data.hijriDay)
     }
   }, [todayQuery.data, onThisDayMonth, onThisDayDay])
-  useEffect(() => {
-    if (eventsYear == null && todayQuery.data?.hijriYear) {
-      setEventsYear(todayQuery.data.hijriYear)
-    }
-  }, [todayQuery.data, eventsYear])
 
   const year = activeYear ?? todayQuery.data?.hijriYear ?? 1447
   const month = activeMonth ?? todayQuery.data?.hijriMonthNumber ?? 1
-  const evYear = eventsYear ?? todayQuery.data?.hijriYear ?? 1447
 
   // ----- Data -----
   const entriesQuery = useQuery<FastingEntry[]>({
@@ -1033,21 +1726,7 @@ export const Fasting: React.FC = () => {
     queryKey: ['fasting', 'summary', year, month],
     queryFn: () => fastingService.monthSummary(year, month),
   })
-  // All events across the whole year, for the Events list view.
-  const allEventsQuery = useQuery<FastingEntry[]>({
-    queryKey: ['fasting', 'year', evYear],
-    queryFn: async () => {
-      // Pull each month in parallel.
-      const promises = Array.from({ length: 12 }, (_, i) =>
-        fastingService.listByHijriMonth(evYear, i + 1).catch(() => [])
-      )
-      const results = await Promise.all(promises)
-      return results.flat()
-    },
-    enabled: viewMode === 'list',
-  })
   const entries = entriesQuery.data ?? []
-  const allEvents = allEventsQuery.data ?? []
 
   // Look up entries by Gregorian date (for the Events list / popover that
   // already has a real ISO date).
@@ -1078,11 +1757,28 @@ export const Fasting: React.FC = () => {
 
   // ----- Derived state -----
   const monthLength = HIJRI_MONTH_LENGTHS[month - 1] ?? 30
-  const firstWeekday = firstDayOfHijriMonth(year, month)
+  const firstWeekday = calibratedFirstWeekday(
+    year,
+    month,
+    todayQuery.data?.hijriDay,
+    todayQuery.data?.gregorianDate,
+    todayQuery.data?.hijriYear,
+    todayQuery.data?.hijriMonthNumber
+  )
   const isCurrentMonth =
     todayQuery.data != null &&
     todayQuery.data.hijriYear === year &&
     todayQuery.data.hijriMonthNumber === month
+
+  // Map of Hijri day -> notable fasting occasions (for cell badges)
+  const occasionsByDay = useMemo(() => {
+    const m = new Map<number, KnowledgeTopic[]>()
+    for (let d = 1; d <= monthLength; d++) {
+      const occ = getOccasionsForHijriDay(month, d)
+      if (occ.length > 0) m.set(d, occ)
+    }
+    return m
+  }, [month, monthLength])
 
   // ----- Handlers -----
   const goToPrevMonth = () => {
@@ -1103,20 +1799,10 @@ export const Fasting: React.FC = () => {
     }
     setOpenEditor(null)
   }
-  const goToToday = () => {
-    if (todayQuery.data) {
-      setActiveYear(todayQuery.data.hijriYear)
-      setActiveMonth(todayQuery.data.hijriMonthNumber)
-      setOnThisDayMonth(todayQuery.data.hijriMonthNumber)
-      setOnThisDayDay(todayQuery.data.hijriDay)
-      setViewMode('month')
-      setOpenEditor(null)
-    }
-  }
+
 
   if (entriesQuery.isError) showError('Failed to load fasting entries')
   if (summaryQuery.isError) showError('Failed to load month summary')
-  if (allEventsQuery.isError) showError('Failed to load events')
 
   // ----- "On This Day" preview -----
   const onThisDayEntry = useMemo(() => {
@@ -1126,10 +1812,12 @@ export const Fasting: React.FC = () => {
     const hijriKey = `${year}|${onThisDayMonth}|${onThisDayDay}`
     const byHijri = entryByHijri.get(hijriKey)
     if (byHijri) return byHijri
-    const targetGreg = approximateGregorianDate(
+    const targetGreg = calibratedGregorianDate(
+      onThisDayDay,
+      todayQuery.data?.hijriDay,
+      todayQuery.data?.gregorianDate,
       year,
-      onThisDayMonth,
-      onThisDayDay
+      onThisDayMonth
     )
     return entryByDate.get(targetGreg) ?? null
   }, [entryByDate, entryByHijri, onThisDayMonth, onThisDayDay, year])
@@ -1169,7 +1857,7 @@ export const Fasting: React.FC = () => {
 
   return (
     <div
-      className="max-w-[1400px] mx-auto px-4 py-8 md:pt-0"
+      className="max-w-[1400px] mx-auto px-4 py-8 md:pt-6"
       onClick={() => setOpenEditor(null)}
     >
       {/* ===== Hero / page header (Prayer Tracker style) ===== */}
@@ -1262,58 +1950,6 @@ export const Fasting: React.FC = () => {
               </span>
             </div>
           </div>
-
-          <div className="flex items-center gap-5 shrink-0">
-            <div
-              className="flex flex-col items-center justify-center rounded-full shrink-0"
-              style={{
-                width: 110,
-                height: 110,
-                background:
-                  'radial-gradient(circle, rgba(240,199,94,0.18) 0%, transparent 70%)',
-                border: '1px solid var(--gold-mid)',
-              }}
-            >
-              <span
-                className="text-2xl font-bold tabular-nums leading-none"
-                style={{
-                  color: 'var(--manuscript-cream)',
-                  fontFamily: 'Georgia, "Times New Roman", serif',
-                }}
-              >
-                {monthFastedLabel}
-              </span>
-              <span
-                className="text-[10px] uppercase font-semibold mt-1"
-                style={{
-                  color: 'var(--gold-glow)',
-                  letterSpacing: '0.18em',
-                }}
-              >
-                fasts / month
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              <LocationPicker
-                onLocationChange={() => {
-                  // Hijri offset may have been auto-seeded — refetch today.
-                  queryClient.invalidateQueries({ queryKey: ['hijri-today'] })
-                  queryClient.invalidateQueries({ queryKey: ['fasting'] })
-                }}
-              />
-              <button
-                onClick={goToToday}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border"
-                style={{
-                  background: 'rgba(251,243,223,0.10)',
-                  color: 'var(--manuscript-cream)',
-                  borderColor: 'var(--gold-mid)',
-                }}
-              >
-                <Compass size={12} /> Jump to today
-              </button>
-            </div>
-          </div>
         </div>
       </OrnateCard>
 
@@ -1333,8 +1969,7 @@ export const Fasting: React.FC = () => {
         >
           {([
             { id: 'month' as const, label: 'Month', icon: <CalendarDays size={12} /> },
-            { id: 'year' as const, label: 'Year', icon: <Grid3x3 size={12} /> },
-            { id: 'list' as const, label: 'Events', icon: <ListChecks size={12} /> },
+            { id: 'knowledge' as const, label: 'Knowledge', icon: <BookOpen size={12} /> },
           ]).map((t) => {
             const isActive = viewMode === t.id
             return (
@@ -1385,7 +2020,7 @@ export const Fasting: React.FC = () => {
           variant="dark"
           topBar
           corners="all"
-          className="!p-6 relative overflow-hidden mb-6"
+          className="!p-6 relative overflow-visible mb-6"
         >
           <div className="flex items-center justify-between mb-4">
             <button
@@ -1461,11 +2096,16 @@ export const Fasting: React.FC = () => {
             ))}
             {Array.from({ length: monthLength }).map((_, idx) => {
               const day = idx + 1
-              const gregDate = approximateGregorianDate(year, month, day)
+              const gregDate = calibratedGregorianDate(
+                day,
+                todayQuery.data?.hijriDay,
+                todayQuery.data?.gregorianDate,
+                year,
+                month
+              )
               // Prefer the entry stored under this Hijri coordinate —
-              // approximateGregorianDate() can drift ±1 day from the
-              // server-computed Gregorian date, so a Gregorian lookup
-              // misses cells the user has already marked.
+              // the server-calibrated Gregorian date should match the
+              // server's Hijri conversion, so both lookups should agree.
               const hijriKey = `${year}|${month}|${day}`
               const entry =
                 entryByHijri.get(hijriKey) ?? entryByDate.get(gregDate)
@@ -1473,17 +2113,29 @@ export const Fasting: React.FC = () => {
                 openEditor?.gregDate === gregDate && openEditor?.hijriDay === day
               const todayMatched =
                 isCurrentMonth && day === (todayQuery.data?.hijriDay ?? -1)
+              // Notable fasting occasions on this Hijri date
+              const dayOccasions = occasionsByDay.get(day) ?? []
+              const visibleOccasions = dayOccasions.slice(0, 2)
+              const moreCount = dayOccasions.length - visibleOccasions.length
+              const isMoreOpen =
+                morePopover?.gregDate === gregDate && morePopover?.hijriDay === day
               return (
                 <div key={day} className="relative">
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation()
-                      setOpenEditor(
-                        isOpen ? null : { gregDate, hijriDay: day }
-                      )
+                      setOpenEditor(isOpen ? null : { gregDate, hijriDay: day })
                     }}
-                    className="w-full rounded-xl p-2 min-h-[88px] flex flex-col gap-1 text-left transition hover:translate-y-[-1px] hover:shadow-md"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setOpenEditor(isOpen ? null : { gregDate, hijriDay: day })
+                      }
+                    }}
+                    className="w-full rounded-xl p-2 min-h-[88px] flex flex-col gap-1 text-left transition hover:translate-y-[-1px] hover:shadow-md cursor-pointer"
                     style={
                       todayMatched
                         ? {
@@ -1515,19 +2167,80 @@ export const Fasting: React.FC = () => {
                       >
                         {day}
                       </span>
-                      {todayMatched && (
-                        <span
-                          className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-full"
-                          style={{
-                            background: 'var(--emerald-deep, #064e3b)',
-                            color: 'var(--gold-light, #f0c75e)',
-                            letterSpacing: '0.18em',
-                          }}
-                        >
-                          Today
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {todayMatched && (
+                          <span
+                            className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-full"
+                            style={{
+                              background: 'var(--emerald-deep, #064e3b)',
+                              color: 'var(--gold-light, #f0c75e)',
+                              letterSpacing: '0.18em',
+                            }}
+                          >
+                            Today
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    {/* Stacked occasion pills (Calendar-style: full title, color-coded) */}
+                    {visibleOccasions.length > 0 && (
+                      <div className="flex flex-col gap-1 mt-auto">
+                        {visibleOccasions.map((occ) => {
+                          const r = RULING_META[occ.ruling]
+                          return (
+                            <button
+                              key={occ.id}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedKnowledgeTopic(occ)
+                              }}
+                              className="text-left text-[10px] px-2 py-1 rounded-md font-bold uppercase truncate transition hover:translate-x-0.5"
+                              style={{
+                                background: `${r.color}33`,
+                                color: todayMatched
+                                  ? 'var(--emerald-deep, #064e3b)'
+                                  : 'var(--manuscript-cream, #fbf3df)',
+                                border: `1px solid ${r.color}`,
+                                letterSpacing: '0.10em',
+                              }}
+                              title={occ.title}
+                            >
+                              {occ.title}
+                            </button>
+                          )
+                        })}
+                        {moreCount > 0 && (
+                          <button
+                            type="button"
+                            ref={(el) => {
+                              if (isMoreOpen) moreTriggerRef.current = el
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              moreTriggerRef.current = e.currentTarget
+                              setMorePopover(
+                                isMoreOpen
+                                  ? null
+                                  : { gregDate, hijriDay: day }
+                              )
+                            }}
+                            className="text-[10px] font-bold text-left cursor-pointer transition hover:translate-x-0.5"
+                            style={{
+                              color: todayMatched
+                                ? 'var(--emerald-deep, #064e3b)'
+                                : 'var(--gold-mid, #d4a017)',
+                              background: 'transparent',
+                              border: 'none',
+                              padding: 0,
+                            }}
+                            title={`${moreCount} more occasion${moreCount > 1 ? 's' : ''} — click to expand`}
+                          >
+                            +{moreCount} more
+                          </button>
+                        )}
+                      </div>
+                    )}
                     <DayPills
                       entry={entry}
                       isToday={todayMatched}
@@ -1535,7 +2248,7 @@ export const Fasting: React.FC = () => {
                         setOpenEditor({ gregDate, hijriDay: day })
                       }
                     />
-                  </button>
+                  </div>
                   {isOpen && (
                     <DayEditor
                       entry={openEditorEntry}
@@ -1555,8 +2268,8 @@ export const Fasting: React.FC = () => {
         </OrnateCard>
       )}
 
-      {/* ===== Year view placeholder ===== */}
-      {viewMode === 'year' && (
+      {/* ===== Knowledge view ===== */}
+      {viewMode === 'knowledge' && (
         <OrnateCard
           variant="dark"
           topBar
@@ -1564,7 +2277,7 @@ export const Fasting: React.FC = () => {
           className="!p-6 mb-6"
         >
           <div className="flex items-center gap-2 mb-3">
-            <Grid3x3 size={16} style={{ color: 'var(--gold-mid, #d4a017)' }} />
+            <BookOpen size={16} style={{ color: 'var(--gold-mid, #d4a017)' }} />
             <h2
               className="text-lg font-bold uppercase"
               style={{
@@ -1573,99 +2286,55 @@ export const Fasting: React.FC = () => {
                 letterSpacing: '0.14em',
               }}
             >
-              Year view
+              Islamic Fasting Knowledge Base
             </h2>
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{
+                background: 'rgba(212, 160, 23, 0.18)',
+                color: 'var(--gold-light, #f0c75e)',
+                border: '1px solid var(--gold-deep, #9a6b0e)',
+                letterSpacing: '0.18em',
+              }}
+            >
+              {ALL_TOPICS.length} topics
+            </span>
           </div>
           <GoldDivider />
-          <p
-            className="text-sm uppercase font-bold text-center py-12"
-            style={{
-              color: 'var(--gold-mid, #d4a017)',
-              letterSpacing: '0.18em',
-            }}
-          >
-            Coming soon — switch to Events for the full list.
-          </p>
-        </OrnateCard>
-      )}
-
-      {/* ===== Events list view ===== */}
-      {viewMode === 'list' && (
-        <OrnateCard
-          variant="dark"
-          topBar
-          corners="all"
-          className="!p-6 mb-6 space-y-4"
-        >
-          {/* Year selector */}
-          <div
-            className="flex items-center gap-3 !p-3 rounded-xl flex-wrap"
-            style={{
-              background:
-                'linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%)',
-              border: '1px solid var(--gold-mid, #d4a017)',
-            }}
-          >
-            <span
-              className="text-[10px] uppercase font-bold"
-              style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
-            >
-              Year
-            </span>
-            <button
-              onClick={() => setEventsYear((y) => (y ?? 1447) - 1)}
-              className="w-7 h-7 inline-flex items-center justify-center rounded-full transition"
-              style={{
-                background:
-                  'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
-                color: 'var(--emerald-deep, #064e3b)',
-                border: '1px solid var(--gold-deep, #9a6b0e)',
-              }}
-              aria-label="Previous year"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <span
-              className="text-base font-bold tabular-nums"
-              style={{
-                color: 'var(--manuscript-cream, #fbf3df)',
-                fontFamily: 'Georgia, "Times New Roman", serif',
-              }}
-            >
-              {evYear} AH
-            </span>
-            <button
-              onClick={() => setEventsYear((y) => (y ?? 1447) + 1)}
-              className="w-7 h-7 inline-flex items-center justify-center rounded-full transition"
-              style={{
-                background:
-                  'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
-                color: 'var(--emerald-deep, #064e3b)',
-                border: '1px solid var(--gold-deep, #9a6b0e)',
-              }}
-              aria-label="Next year"
-            >
-              <ChevronRight size={14} />
-            </button>
+          <div className="mt-4">
+            <KnowledgeView
+              activeCategory={knowledgeCategory}
+              onCategoryChange={setKnowledgeCategory}
+              onTopicClick={setSelectedKnowledgeTopic}
+            />
           </div>
-
-          <EventsView
-            entries={allEvents}
-            activeCategory={eventsCategory}
-            onCategoryChange={setEventsCategory}
-            onEntryClick={(e) => {
-              // Switch to month view and open the editor for that day.
-              if (e.hijri_year == null || e.hijri_month == null || e.hijri_day == null) {
-                return
-              }
-              setActiveYear(e.hijri_year)
-              setActiveMonth(e.hijri_month)
-              setOpenEditor({ gregDate: e.date, hijriDay: e.hijri_day })
-              setViewMode('month')
-            }}
-          />
         </OrnateCard>
       )}
+
+      {/* ===== Knowledge detail modal ===== */}
+      {selectedKnowledgeTopic && (
+        <KnowledgeDetailModal
+          topic={selectedKnowledgeTopic}
+          onClose={() => setSelectedKnowledgeTopic(null)}
+        />
+      )}
+
+      {/* ===== "+N more" popover (fixed-position portal) ===== */}
+      {morePopover && (() => {
+        const all = occasionsByDay.get(morePopover.hijriDay) ?? []
+        const hidden = all.slice(2)
+        return (
+          <MorePopover
+            triggerRef={moreTriggerRef as React.RefObject<HTMLElement>}
+            occasions={hidden}
+            onPick={(occ) => {
+              setSelectedKnowledgeTopic(occ)
+              setMorePopover(null)
+            }}
+            onClose={() => setMorePopover(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

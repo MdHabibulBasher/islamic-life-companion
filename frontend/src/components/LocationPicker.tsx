@@ -18,6 +18,7 @@
 //     pick so the parent can invalidate its own queries.
 // ============================================================================
 import React, { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { MapPin, Search, X, Crosshair } from 'lucide-react'
 import { prayerTimesService, type UserLocation } from '../services/prayerTimesService'
 import { useToast } from './Toast'
@@ -212,9 +213,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         {resolving ? 'Detecting…' : label}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4"
+          className="fixed inset-0 z-[1000] flex items-start sm:items-center justify-center p-4"
           onClick={() => setOpen(false)}
           style={{
             background: 'rgba(8, 24, 18, 0.65)',
@@ -346,9 +347,56 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               </div>
             </div>
           </OrnateCard>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
+  )
+}
+
+// ============================================================================
+// LocationBadge
+// ----------------------------------------------------------------------------
+// Read-only display of the current location, used on pages that previously
+// hosted their own editable LocationPicker (Calendar, Fasting, Prayer Times).
+// Editing now happens in the TopNav; this badge just shows where the user is.
+// ============================================================================
+
+import { useQuery } from '@tanstack/react-query'
+
+export const LocationBadge: React.FC<{ className?: string }> = ({
+  className,
+}) => {
+  const { data: loc } = useQuery({
+    queryKey: ['userLocation'],
+    queryFn: () => prayerTimesService.getUserLocation(),
+    staleTime: Infinity,
+  })
+
+  const label = loc?.city
+    ? displayLabel({ city: loc.city, country: loc.country ?? '' })
+    : 'No location set'
+
+  return (
+    <span
+      className={
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ' +
+        (className ?? '')
+      }
+      style={{
+        background:
+          'linear-gradient(135deg, rgba(212, 160, 23, 0.15) 0%, rgba(212, 160, 23, 0.05) 100%)',
+        color: 'var(--gold-mid, #d4a017)',
+        border: '1px solid var(--gold-mid, #d4a017)',
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        fontFamily: 'Georgia, "Times New Roman", serif',
+      }}
+      title={label}
+    >
+      <MapPin size={11} />
+      {label}
+    </span>
   )
 }
 

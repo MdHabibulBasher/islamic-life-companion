@@ -1,29 +1,85 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart3, TrendingUp, Calendar, Award, Zap, Target, Download,
   Flame, Sparkles, BookOpen, CheckCircle2, AlertCircle, Loader2,
+  Moon,
 } from 'lucide-react'
 import { GoldDivider } from '../components/IslamicOrnamentBG'
 import { dashboardService, type DashboardData } from '../services/dashboardService'
-import { prayerTrackingService, type PrayerStatistics, type AllStreaksResponse } from '../services/prayerTrackingService'
-import { habitService, type UserHabit } from '../services/habitService'
+import {
+  prayerTrackingService,
+  type PrayerStatistics,
+} from '../services/prayerTrackingService'
+import {
+  habitService,
+  type HabitRangeSummary,
+} from '../services/habitService'
 import { challengeService, type UserChallengeDetailed } from '../services/challengeService'
+import { fastingService, type FastingMonthSummary } from '../services/fastingService'
+import { quranService, type QuranProgress } from '../services/quranService'
+import { api } from '../services/api'
 
 /* ============================================================================
  *  Analytics — deep-emerald edition (real data from database)
  * ----------------------------------------------------------------------------
  *  Pulls from:
  *   • Dashboard aggregation (habits, challenges, quran, achievements)
- *   • Prayer tracking statistics + streaks
- *   • Habit statistics + per-habit tracking
+ *   • Prayer tracking statistics + streaks + range summary + qada stats
+ *   • Habit statistics + per-habit tracking + range summary
  *   • Challenge progress + statistics
+ *   • Fasting month summary (Hijri-month scoped)
+ *   • Quran reading progress
  * ========================================================================= */
 
-export const Analytics: React.FC = () => {
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month')
+type TimeRange = 'week' | 'month' | 'year'
 
-  // ── Data queries ────────────────────────────────────────────────────
+/** Compute the [start, end] Gregorian window for the selected toggle. */
+function useRange(range: TimeRange) {
+  return useMemo(() => {
+    const end = new Date()
+    end.setHours(0, 0, 0, 0)
+    const start = new Date(end)
+    if (range === 'week') start.setDate(start.getDate() - 6)
+    else if (range === 'month') start.setDate(start.getDate() - 29)
+    else start.setDate(start.getDate() - 364)
+    const iso = (d: Date) => d.toISOString().slice(0, 10)
+    return { startStr: iso(start), endStr: iso(end) }
+  }, [range])
+}
+
+/** Fetch today's Hijri date so the fasting card can default to the
+ *  current Hijri month. */
+function useHijriToday() {
+  return useQuery({
+    queryKey: ['hijri-today'],
+    queryFn: async () => {
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const r = await api.get('/prayer-times/islamic-date', {
+        params: { target_date: todayStr },
+      })
+      return {
+        hijriYear: r.data.hijri_year as number,
+        hijriMonth: r.data.hijri_month_number as number,
+        hijriMonthName: r.data.hijri_month as string,
+      }
+    },
+    staleTime: 1000 * 60 * 60, // 1h — Hijri date won't change mid-session
+  })
+}
+
+export const Analytics: React.FC = () => {
+  const [timeRange, setTimeRange] = useState<TimeRange>('month')
+
+  // ── Range window for the toggle ─────────────────────────────────────
+  const { startStr, endStr } = useRange(timeRange)
+
+  // ── Hijri today (for fasting card) ──────────────────────────────────
+  const hijriToday = useHijriToday()
+  const hijriYear = hijriToday.data?.hijriYear ?? new Date().getFullYear()
+  const hijriMonth = hijriToday.data?.hijriMonth ?? 1
+
+  // ── Data queries (range-aware where possible) ───────────────────────
   const { data: dashboard, isLoading: dashLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => dashboardService.get(),
@@ -34,9 +90,9 @@ export const Analytics: React.FC = () => {
     queryFn: () => prayerTrackingService.getStatistics(),
   })
 
-  const { data: prayerStreaks } = useQuery<AllStreaksResponse>({
-    queryKey: ['prayerStreaks'],
-    queryFn: () => prayerTrackingService.getStreaks(),
+  const { data: prayerSummary } = useQuery({
+    queryKey: ['prayerSummary', startStr, endStr],
+    queryFn: () => prayerTrackingService.getSummary(startStr, endStr),
   })
 
   const { data: habitStats } = useQuery({
@@ -44,9 +100,9 @@ export const Analytics: React.FC = () => {
     queryFn: () => habitService.getStatistics(),
   })
 
-  const { data: habits } = useQuery<UserHabit[]>({
-    queryKey: ['habits'],
-    queryFn: () => habitService.getHabits(),
+  const { data: habitRange } = useQuery<HabitRangeSummary>({
+    queryKey: ['habitRangeSummary', startStr, endStr],
+    queryFn: () => habitService.getRangeSummary(startStr, endStr),
   })
 
   const { data: userChallenges } = useQuery<UserChallengeDetailed[]>({
@@ -59,38 +115,41 @@ export const Analytics: React.FC = () => {
     queryFn: () => challengeService.getStatistics(),
   })
 
+  const { data: fastingSummary } = useQuery<FastingMonthSummary>({
+    queryKey: ['fastingMonthSummary', hijriYear, hijriMonth],
+    queryFn: () => fastingService.monthSummary(hijriYear, hijriMonth),
+    enabled: !!hijriToday.data,
+  })
+
+  const { data: quranProgress } = useQuery<QuranProgress>({
+    queryKey: ['quranProgress'],
+    queryFn: () => quranService.getReadingProgress(),
+  })
+
+  // prayerSummary (from getSummary) powers the Missed Prayers card and CSV
+
   // ── Derived data ────────────────────────────────────────────────────
-  const last7Days = useMemo(() => {
-    const arr = dashboard?.habits?.last_7_days ?? []
-    return arr.map((d) => ({
-      day: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' }),
+  const prayerTrend = useMemo(() => {
+    if (!prayerSummary?.per_prayer) return []
+    return prayerSummary.per_prayer.map((p) => ({
+      name: p.prayer_name.charAt(0).toUpperCase() + p.prayer_name.slice(1),
+      prayed: p.prayed,
+      missed: p.missed,
+    }))
+  }, [prayerSummary])
+
+  const habitTrend = useMemo(() => {
+    if (!habitRange?.per_day) return []
+    return habitRange.per_day.map((d) => ({
+      day: new Date(d.date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      }),
       completed: d.completed_habits,
       total: d.total_habits,
+      rate: d.completion_rate,
     }))
-  }, [dashboard])
-
-  const monthlyData = useMemo(() => {
-    // Aggregate last_7_days into 4 weekly buckets if available,
-    // otherwise derive from dashboard habits data
-    const days = dashboard?.habits?.last_7_days ?? []
-    if (days.length === 0) return []
-    // Build a simple 4-week approximation from what we have
-    const week1 = days.slice(0, 2)
-    const week2 = days.slice(2, 4)
-    const week3 = days.slice(4, 6)
-    const week4 = days.slice(6)
-    const bucket = (arr: typeof days) => ({
-      week: `Week ${Math.random() > 0.5 ? 1 : 1}`,
-      completed: arr.reduce((s, d) => s + d.completed_habits, 0),
-      total: arr.reduce((s, d) => s + d.total_habits, 0),
-    })
-    return [
-      { week: 'Week 1', completed: bucket(week1).completed, total: bucket(week1).total || 1 },
-      { week: 'Week 2', completed: bucket(week2).completed, total: bucket(week2).total || 1 },
-      { week: 'Week 3', completed: bucket(week3).completed, total: bucket(week3).total || 1 },
-      { week: 'Week 4', completed: bucket(week4).completed, total: bucket(week4).total || 1 },
-    ]
-  }, [dashboard])
+  }, [habitRange])
 
   // Prayer per-name breakdown for the habits chart section
   const prayerBreakdown = useMemo(() => {
@@ -174,6 +233,38 @@ export const Analytics: React.FC = () => {
       })
     }
 
+    // Fasting insight
+    const fastedDays = fastingSummary?.fasted_days ?? 0
+    if (fastedDays > 0) {
+      items.push({
+        tag: 'Fasting',
+        tagColor: '#38bdf8',
+        icon: <Moon className="w-4 h-4" />,
+        text: `You\u2019ve fasted ${fastedDays} day${fastedDays !== 1 ? 's' : ''} this Hijri month (${fastingSummary?.hijri_month_name ?? ''}). May Allah accept your fasting.`,
+      })
+    }
+
+    // Missed prayers insight (from range summary)
+    const totalMissed = prayerSummary?.missed ?? 0
+    const totalPrayed = prayerSummary?.prayed ?? 0
+    if (totalMissed > 0) {
+      // Find the prayer with the most misses in range
+      const worst = prayerSummary?.per_prayer?.slice().sort((a, b) => b.missed - a.missed)[0]
+      items.push({
+        tag: 'Missed Prayers',
+        tagColor: '#f0c75e',
+        icon: <AlertCircle className="w-4 h-4" />,
+        text: `You missed ${totalMissed} prayer${totalMissed !== 1 ? 's' : ''} this ${timeRange}${worst && worst.missed > 0 ? ` \u2014 ${worst.prayer_name} has the most misses (${worst.missed})` : ''}. Don't be discouraged; every effort to pray on time counts.`,
+      })
+    } else if (totalPrayed > 0) {
+      items.push({
+        tag: 'Missed Prayers',
+        tagColor: '#22c55e',
+        icon: <CheckCircle2 className="w-4 h-4" />,
+        text: `Alhamdulillah, you have no missed prayers recorded this ${timeRange} \u2014 ${totalPrayed} prayed. May Allah keep you steadfast.`,
+      })
+    }
+
     // Fallback insight
     if (items.length === 0) {
       items.push({
@@ -185,15 +276,15 @@ export const Analytics: React.FC = () => {
     }
 
     return items
-  }, [dashboard, prayerStats, activeChallenges, completedChallenges])
+  }, [dashboard, prayerStats, activeChallenges, completedChallenges, fastingSummary, prayerSummary, timeRange])
 
-  // ── Statistic cards from real data ─────────────────────────────────
+  // ── Statistic cards from real data (respect selected range) ────────
   const statistics = [
     {
-      title: 'Habit Completions (Month)',
-      value: String(dashboard?.habits?.completed_this_month ?? habitStats?.this_month ?? 0),
+      title: 'Habit Completions',
+      value: String(habitRange?.completed_habits ?? dashboard?.habits?.completed_this_month ?? habitStats?.this_month ?? 0),
       icon: <Target className="w-5 h-5" />,
-      sub: `${dashboard?.habits?.completed_today ?? habitStats?.completed_today ?? 0} today`,
+      sub: `${timeRange} \u2022 ${dashboard?.habits?.completed_today ?? habitStats?.completed_today ?? 0} today`,
     },
     {
       title: 'Current Streak',
@@ -278,7 +369,111 @@ export const Analytics: React.FC = () => {
     border: '1px solid rgba(212,160,23,0.15)',
   }
 
-  const loading = dashLoading
+  const emptyText: React.CSSProperties = {
+    color: 'var(--manuscript-cream, #fbf3df)',
+    opacity: 0.5,
+  }
+
+  // Combine loading flags so partial loads don't show stale state.
+  const loading =
+    dashLoading ||
+    (timeRange === 'month' && habitRange === undefined)
+
+  // ── CSV export ──────────────────────────────────────────────────────
+  const downloadCsv = useCallback(() => {
+    const rows: string[] = []
+    const push = (line: string) => rows.push(line)
+
+    push('# Islamic Life Companion \u2014 Analytics Report')
+    push(`# Range: ${timeRange} (${startStr} to ${endStr})`)
+    push(`# Generated: ${new Date().toISOString()}`)
+    push('')
+
+    push('## Summary Cards')
+    push('Metric,Value,Sub')
+    statistics.forEach((s) => push(`${csv(s.title)},${csv(s.value)},${csv(s.sub)}`))
+    push('')
+
+    if (prayerSummary) {
+      push('## Missed Prayers (range)')
+      push('Metric,Value')
+      push(`Days in range,${prayerSummary.days_in_range}`)
+      push(`Days tracked,${prayerSummary.days_tracked}`)
+      push(`Prayed,${prayerSummary.prayed}`)
+      push(`Missed,${prayerSummary.missed}`)
+      push(`Full days,${prayerSummary.full_days}`)
+      push('')
+      push('Prayer,Prayed,Missed')
+      prayerSummary.per_prayer.forEach((p) =>
+        push(`${csv(p.prayer_name)},${p.prayed},${p.missed}`),
+      )
+      push('')
+    }
+
+    if (habitRange) {
+      push('## Habit Range Summary')
+      push('Metric,Value')
+      push(`Days in range,${habitRange.days_in_range}`)
+      push(`Total habits,${habitRange.total_habits}`)
+      push(`Completed habits,${habitRange.completed_habits}`)
+      push(`Completion rate,${habitRange.completion_rate}%`)
+      push('')
+      push('Date,Completed,Total,Rate%')
+      habitRange.per_day.forEach((d) =>
+        push(`${d.date},${d.completed_habits},${d.total_habits},${d.completion_rate}`),
+      )
+      push('')
+    }
+
+    if (fastingSummary) {
+      push('## Fasting Month Summary')
+      push('Metric,Value')
+      push(`Hijri month,${csv(fastingSummary.hijri_month_name)} ${fastingSummary.hijri_year}`)
+      push(`Total days,${fastingSummary.total_days}`)
+      push(`Fasted days,${fastingSummary.fasted_days}`)
+      push(`Ramadan days,${fastingSummary.ramadan_days}`)
+      push(`Sunnah days,${fastingSummary.sunnah_days}`)
+      push(`White days,${fastingSummary.white_days}`)
+      push(`Total donations,${fastingSummary.total_donations}`)
+      push(`Good deeds done,${fastingSummary.good_deeds_done}`)
+      push('')
+    }
+
+    if (quranProgress) {
+      push('## Quran Progress')
+      push('Metric,Value')
+      push(`Total surahs read,${quranProgress.totalSurahsRead}`)
+      push(`Total ayahs read,${quranProgress.totalAyahsRead}`)
+      push(`Current surah,${quranProgress.currentSurah}`)
+      push(`Current ayah,${quranProgress.currentAyah}`)
+      push(`Reading streak,${quranProgress.readingStreak} days`)
+      push(`Last read date,${csv(quranProgress.lastReadDate)}`)
+      push('')
+    }
+
+    if (challengeStats) {
+      push('## Challenge Statistics')
+      push('Metric,Value')
+      Object.entries(challengeStats as Record<string, unknown>).forEach(([k, v]) => {
+        if (Array.isArray(v)) {
+          push(`${csv(k)},${csv(JSON.stringify(v))}`)
+        } else {
+          push(`${csv(k)},${csv(String(v))}`)
+        }
+      })
+      push('')
+    }
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `analytics-${timeRange}-${startStr}_to_${endStr}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [statistics, prayerSummary, habitRange, fastingSummary, quranProgress, challengeStats, timeRange, startStr, endStr])
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 md:pt-0">
@@ -361,28 +556,68 @@ export const Analytics: React.FC = () => {
             ))}
           </div>
 
-          {/* ── Charts Section ───────────────────────────────────────── */}
+          {/* ── Trend Charts Section (range-aware) ───────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Weekly Chart */}
+            {/* Prayer completion trend (range-aware) */}
+            <div style={{ ...cardStyle, padding: '1.5rem' }}>
+              <div style={goldBar} />
+              <h2 className="text-lg font-semibold mb-5 flex items-center gap-2" style={sectionTitle}>
+                <TrendingUp className="w-5 h-5" style={{ color: 'var(--gold-mid, #d4a017)' }} />
+                Prayer Completion — {timeRange}
+              </h2>
+              {prayerTrend.length > 0 ? (
+                <div className="space-y-4">
+                  {prayerTrend.map((p) => {
+                    const total = p.prayed + p.missed
+                    const prayedPct = total > 0 ? (p.prayed / total) * 100 : 0
+                    return (
+                      <div key={p.name}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-semibold" style={labelStyle}>{p.name}</span>
+                          <span className="text-xs" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.7 }}>
+                            {p.prayed} prayed / {p.missed} missed
+                          </span>
+                        </div>
+                        <div className="w-full rounded-full h-3" style={progressTrack}>
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.max(prayedPct, 5)}%`,
+                              background: 'linear-gradient(90deg, var(--emerald, #047857) 0%, var(--gold-mid, #d4a017) 100%)',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-center py-8" style={emptyText}>
+                  No prayer data for this range yet.
+                </p>
+              )}
+            </div>
+
+            {/* Habit completion trend (range-aware) */}
             <div style={{ ...cardStyle, padding: '1.5rem' }}>
               <div style={goldBar} />
               <h2 className="text-lg font-semibold mb-5 flex items-center gap-2" style={sectionTitle}>
                 <Calendar className="w-5 h-5" style={{ color: 'var(--gold-mid, #d4a017)' }} />
-                Weekly Habit Progress
+                Habit Completion — {timeRange}
               </h2>
-              {last7Days.length > 0 ? (
-                <div className="space-y-4">
-                  {last7Days.map((day, i) => {
-                    const pct = day.total > 0 ? (day.completed / day.total) * 100 : 0
+              {habitTrend.length > 0 ? (
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {habitTrend.map((d, i) => {
+                    const pct = d.total > 0 ? (d.completed / d.total) * 100 : 0
                     return (
                       <div key={i}>
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-semibold" style={labelStyle}>{day.day}</span>
+                          <span className="text-xs font-semibold" style={labelStyle}>{d.day}</span>
                           <span className="text-xs" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.7 }}>
-                            {day.completed}/{day.total}
+                            {d.completed}/{d.total}
                           </span>
                         </div>
-                        <div className="w-full rounded-full h-3" style={progressTrack}>
+                        <div className="w-full rounded-full h-2.5" style={progressTrack}>
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
@@ -396,12 +631,15 @@ export const Analytics: React.FC = () => {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-center py-8" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.5 }}>
-                  No habit data for the past week yet.
+                <p className="text-sm text-center py-8" style={emptyText}>
+                  No habit data for this range yet.
                 </p>
               )}
             </div>
+          </div>
 
+          {/* ── Prayer Streaks + Active Challenges ─────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Prayer Streaks */}
             <div style={{ ...cardStyle, padding: '1.5rem' }}>
               <div style={goldBar} />
@@ -436,28 +674,19 @@ export const Analytics: React.FC = () => {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-center py-8" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.5 }}>
+                <p className="text-sm text-center py-8" style={emptyText}>
                   No prayer streak data yet. Start tracking your prayers!
                 </p>
               )}
             </div>
-          </div>
 
-          {/* ── Active Challenges ───────────────────────────────────── */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-3">
-              <h2 className="text-lg sm:text-xl font-bold tracking-wide" style={sectionTitle}>
-                Active Challenges
-              </h2>
-              <span
-                className="flex-1 h-px"
-                style={{ background: 'linear-gradient(90deg, var(--gold-mid, #d4a017) 0%, transparent 80%)' }}
-                aria-hidden
-              />
-            </div>
-
+            {/* Active Challenges */}
             <div style={{ ...cardStyle, padding: '1.5rem' }}>
               <div style={goldBar} />
+              <h2 className="text-lg font-semibold mb-5 flex items-center gap-2" style={sectionTitle}>
+                <Award className="w-5 h-5" style={{ color: 'var(--gold-mid, #d4a017)' }} />
+                Active Challenges
+              </h2>
               {activeChallenges.length > 0 ? (
                 <div className="space-y-4">
                   {activeChallenges.map((uc) => {
@@ -467,7 +696,7 @@ export const Analytics: React.FC = () => {
                       <div key={uc.challenge.id}>
                         <div className="flex justify-between items-center mb-2">
                           <span className="font-semibold flex items-center gap-2" style={{ color: 'var(--manuscript-cream, #fbf3df)' }}>
-                            <span className="text-lg">{uc.challenge.icon || '🎯'}</span>
+                            <span className="text-lg">{uc.challenge.icon || '\uD83C\uDFAF'}</span>
                             <span style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
                               {uc.challenge.name_en}
                             </span>
@@ -490,8 +719,148 @@ export const Analytics: React.FC = () => {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-center py-8" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.5 }}>
+                <p className="text-sm text-center py-8" style={emptyText}>
                   No active challenges. Join one from the Challenges page!
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* ── New data-source cards: Fasting, Quran, Qada, Challenge stats ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Fasting summary */}
+            <div style={{ ...cardStyle, padding: '1.5rem' }}>
+              <div style={goldBar} />
+              <h2 className="text-lg font-semibold mb-5 flex items-center gap-2" style={sectionTitle}>
+                <Moon className="w-5 h-5" style={{ color: 'var(--gold-mid, #d4a017)' }} />
+                Fasting — {fastingSummary?.hijri_month_name ?? 'Current Hijri Month'} {fastingSummary?.hijri_year ?? hijriYear}
+              </h2>
+              {fastingSummary ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: 'Fasted Days', value: `${fastingSummary.fasted_days}/${fastingSummary.total_days}` },
+                    { label: 'Ramadan Days', value: fastingSummary.ramadan_days },
+                    { label: 'Sunnah Days', value: fastingSummary.sunnah_days },
+                    { label: 'White Days', value: fastingSummary.white_days },
+                    { label: 'Good Deeds', value: fastingSummary.good_deeds_done },
+                    { label: 'Donations', value: fastingSummary.total_donations },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <div style={tileHeader} className="mb-1">{s.label}</div>
+                      <div style={{ ...tileValue, fontSize: '1.25rem' }}>{s.value}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-center py-8" style={emptyText}>
+                  No fasting data for this Hijri month yet.
+                </p>
+              )}
+            </div>
+
+            {/* Quran progress */}
+            <div style={{ ...cardStyle, padding: '1.5rem' }}>
+              <div style={goldBar} />
+              <h2 className="text-lg font-semibold mb-5 flex items-center gap-2" style={sectionTitle}>
+                <BookOpen className="w-5 h-5" style={{ color: 'var(--gold-mid, #d4a017)' }} />
+                Quran Reading Progress
+              </h2>
+              {quranProgress ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: 'Surahs Read', value: quranProgress.totalSurahsRead },
+                    { label: 'Ayahs Read', value: quranProgress.totalAyahsRead },
+                    { label: 'Current Surah', value: quranProgress.currentSurah },
+                    { label: 'Current Ayah', value: quranProgress.currentAyah },
+                    { label: 'Reading Streak', value: `${quranProgress.readingStreak}d` },
+                    {
+                      label: 'Last Read',
+                      value: quranProgress.lastReadDate
+                        ? new Date(quranProgress.lastReadDate).toLocaleDateString()
+                        : '\u2014',
+                    },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <div style={tileHeader} className="mb-1">{s.label}</div>
+                      <div style={{ ...tileValue, fontSize: '1.25rem' }}>{s.value}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-center py-8" style={emptyText}>
+                  No Quran reading data yet.
+                </p>
+              )}
+            </div>
+
+            {/* Missed Prayers */}
+            <div style={{ ...cardStyle, padding: '1.5rem' }}>
+              <div style={goldBar} />
+              <h2 className="text-lg font-semibold mb-5 flex items-center gap-2" style={sectionTitle}>
+                <AlertCircle className="w-5 h-5" style={{ color: 'var(--gold-mid, #d4a017)' }} />
+                Missed Prayers — {timeRange}
+              </h2>
+              {prayerSummary && prayerSummary.per_prayer.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <div style={tileHeader} className="mb-1">Missed</div>
+                      <div style={{ ...tileValue, fontSize: '1.25rem', color: '#f0c75e' }}>
+                        {prayerSummary.missed}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={tileHeader} className="mb-1">Prayed</div>
+                      <div style={{ ...tileValue, fontSize: '1.25rem', color: '#22c55e' }}>
+                        {prayerSummary.prayed}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {prayerSummary.per_prayer.map((p) => (
+                      <div key={p.prayer_name} className="flex justify-between text-xs" style={labelStyle}>
+                        <span style={{ textTransform: 'capitalize' }}>{p.prayer_name}</span>
+                        <span style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.8 }}>
+                          {p.prayed} prayed • {p.missed} missed
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-center py-8" style={emptyText}>
+                  No prayer data for this range.
+                </p>
+              )}
+            </div>
+
+            {/* Challenge statistics */}
+            <div style={{ ...cardStyle, padding: '1.5rem' }}>
+              <div style={goldBar} />
+              <h2 className="text-lg font-semibold mb-5 flex items-center gap-2" style={sectionTitle}>
+                <Award className="w-5 h-5" style={{ color: 'var(--gold-mid, #d4a017)' }} />
+                Challenge Statistics
+              </h2>
+              {challengeStats ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: 'Joined', value: (challengeStats as Record<string, unknown>).total_challenges_joined ?? 0 },
+                    { label: 'Completed', value: (challengeStats as Record<string, unknown>).total_challenges_completed ?? 0 },
+                    {
+                      label: 'Completion Rate',
+                      value: `${(challengeStats as Record<string, unknown>).completion_rate ?? 0}%`,
+                    },
+                    { label: 'Best Streak', value: `${(challengeStats as Record<string, unknown>).best_streak ?? 0}d` },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <div style={tileHeader} className="mb-1">{s.label}</div>
+                      <div style={{ ...tileValue, fontSize: '1.25rem' }}>{String(s.value)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-center py-8" style={emptyText}>
+                  No challenge statistics yet.
                 </p>
               )}
             </div>
@@ -567,6 +936,7 @@ export const Analytics: React.FC = () => {
           {/* ── Footer action ────────────────────────────────────────── */}
           <div className="text-center">
             <button
+              onClick={downloadCsv}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition"
               style={{
                 background:
@@ -586,4 +956,11 @@ export const Analytics: React.FC = () => {
       )}
     </div>
   )
+}
+
+/** Escape a value for CSV (quote if it contains commas/quotes/newlines). */
+function csv(v: string | number): string {
+  const s = String(v)
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
+  return s
 }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from typing import List
@@ -15,7 +15,7 @@ from app.schemas.habit import (
     HabitCategoryResponse, UserHabitCreate, UserHabitUpdate, UserHabitResponse,
     HabitTrackingCreate, HabitTrackingUpdate, HabitTrackingResponse,
     HabitStreakResponse, DailyHabitSummaryResponse, HabitStatisticsResponse,
-    HabitWithTracking
+    HabitWithTracking, HabitRangeSummaryResponse, HabitRangeDayPoint,
 )
 
 router = APIRouter()
@@ -506,6 +506,96 @@ def get_habit_tracking_history(
     ).order_by(HabitTracking.tracking_date.desc()).all()
     
     return tracking
+
+@router.get("/range-summary", response_model=HabitRangeSummaryResponse)
+def get_habit_range_summary(
+    start: date = Query(..., description="Earliest tracking_date (inclusive)."),
+    end: date = Query(..., description="Latest tracking_date (inclusive)."),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Aggregate habit completion across an arbitrary date range.
+
+    Mirrors ``get_daily_summary`` but spans [start, end] and returns a
+    per-day breakdown so the Analytics view can draw a trend chart for the
+    selected week / month / year window. ``total_habits`` is the number of
+    *active, non-deleted* habits the user currently has, so the per-day
+    completion rate reflects the current habit set.
+    """
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be on or after start")
+
+    # Current habit set — active and not deleted. Recomputed each call so
+    # newly added/retired habits are reflected without a re-seed.
+    total_habits = (
+        db.query(UserHabit)
+        .filter(
+            UserHabit.user_id == current_user.id,
+            UserHabit.is_active == True,
+            UserHabit.is_deleted == False,
+        )
+        .count()
+    )
+
+    # Completed-habit rows in range, joined to the active-habit set so we
+    # only count habits the user still tracks.
+    rows = (
+        db.query(HabitTracking)
+        .join(
+            UserHabit,
+            and_(
+                HabitTracking.habit_id == UserHabit.id,
+                UserHabit.is_active == True,
+                UserHabit.is_deleted == False,
+            ),
+        )
+        .filter(
+            HabitTracking.user_id == current_user.id,
+            HabitTracking.tracking_date >= start,
+            HabitTracking.tracking_date <= end,
+            HabitTracking.is_completed == True,
+        )
+        .all()
+    )
+
+    # Build per-day buckets.
+    per_day: dict[date, int] = {}
+    for r in rows:
+        per_day[r.tracking_date] = per_day.get(r.tracking_date, 0) + 1
+
+    days_in_range = (end - start).days + 1
+    day_points: list[HabitRangeDayPoint] = []
+    completed_habits = 0
+    for i in range(days_in_range):
+        d = start + timedelta(days=i)
+        done = per_day.get(d, 0)
+        completed_habits += done
+        rate = round((done / total_habits) * 100, 1) if total_habits > 0 else 0.0
+        day_points.append(
+            HabitRangeDayPoint(
+                date=d,
+                total_habits=total_habits,
+                completed_habits=done,
+                completion_rate=rate,
+            )
+        )
+
+    completion_rate = (
+        round((completed_habits / (total_habits * days_in_range)) * 100, 1)
+        if total_habits > 0 and days_in_range > 0
+        else 0.0
+    )
+
+    return HabitRangeSummaryResponse(
+        start=start,
+        end=end,
+        days_in_range=days_in_range,
+        total_habits=total_habits,
+        completed_habits=completed_habits,
+        completion_rate=completion_rate,
+        per_day=day_points,
+    )
+
 
 # Statistics
 @router.get("/stats/summary", response_model=HabitStatisticsResponse)

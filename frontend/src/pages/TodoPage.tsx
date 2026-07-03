@@ -11,7 +11,6 @@ import { useToast } from '../components/Toast'
 import {
   OrnateCard,
   PageHeader,
-  Star8,
 } from '../components/IslamicOrnamentBG'
 import { KanbanBoard } from './todo/KanbanBoard'
 
@@ -119,7 +118,7 @@ export const TodoPage = () => {
 
   return (
     <div className="max-w-[1500px] mx-auto px-4 py-8 md:pt-0">
-      <PageHeader title="To-Do Board" ornament={<Star8 size={26} />} />
+      <PageHeader title="To-Do Board" />
 
       {/* Flow indicator — a 4-step breadcrumb explaining the intended
           drag path. Stays compact so the 4 columns keep the lion's

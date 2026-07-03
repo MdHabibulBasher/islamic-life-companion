@@ -140,6 +140,37 @@ class HabitStatisticsResponse(BaseModel):
         from_attributes = True
 
 
+class HabitRangeDayPoint(BaseModel):
+    """One day's habit-completion counts inside a range summary."""
+    date: date
+    total_habits: int = 0
+    completed_habits: int = 0
+    completion_rate: float = 0.0
+
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            date: lambda v: v.isoformat() if v else None,
+        }
+
+
+class HabitRangeSummaryResponse(BaseModel):
+    """Aggregate habit completion across an arbitrary [start, end] range."""
+    start: date
+    end: date
+    days_in_range: int = 0
+    total_habits: int = 0
+    completed_habits: int = 0
+    completion_rate: float = 0.0
+    per_day: List[HabitRangeDayPoint] = []
+
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            date: lambda v: v.isoformat() if v else None,
+        }
+
+
 class HabitWithTracking(BaseModel):
     habit: UserHabitResponse
     today_tracking: Optional[HabitTrackingResponse] = None
