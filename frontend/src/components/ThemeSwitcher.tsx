@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check, Moon, Sun } from 'lucide-react'
 import { THEMES, useTheme, type ThemeId } from '../contexts/ThemeContext'
 
 /**
@@ -117,39 +117,29 @@ const Swatch: React.FC<{ hex: string; label: string; isSurface?: boolean }> = ({
 )
 
 /**
- * Compact switcher for tight spaces (sidebar drawer / popover).
- * Renders the same four themes but as small circular swatch chips so the
- * user can preview + tap to apply without leaving the page.
+ * Compact switcher for tight spaces (TopNav / popover).
+ * A single sun/moon toggle button that flips between light and dark.
  */
 export const CompactThemeSwitcher: React.FC = () => {
-  const { theme, setTheme } = useTheme()
+  const { theme, toggleTheme } = useTheme()
+  const isDark = theme === 'dark'
   return (
-    <div className="flex items-center gap-2">
-      {THEMES.map((t) => {
-        const active = theme === t.id
-        return (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTheme(t.id)}
-            aria-pressed={active}
-            aria-label={`Switch to ${t.name} theme`}
-            title={t.name}
-            className={`relative h-8 w-8 rounded-full border-2 transition ${
-              active ? 'border-edge-focus scale-110 shadow' : 'border-edge-soft hover:scale-105'
-            }`}
-            style={{
-              background: `linear-gradient(135deg, ${t.swatches.primary} 0%, ${t.swatches.primary} 50%, ${t.swatches.accent} 100%)`,
-            }}
-          >
-            {active && (
-              <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-surface-card border border-edge-soft">
-                <Check size={10} className="text-brand-primary" strokeWidth={3} />
-              </span>
-            )}
-          </button>
-        )
-      })}
-    </div>
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-pressed={isDark}
+      aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+      title={isDark ? 'Light mode' : 'Dark mode'}
+      className="relative inline-flex items-center justify-center h-9 w-9 rounded-full border-2 transition hover:scale-105"
+      style={{
+        borderColor: 'var(--gold-mid)',
+        background: 'var(--glass-bg)',
+        color: 'var(--gold-mid)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
+    >
+      {isDark ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
   )
 }

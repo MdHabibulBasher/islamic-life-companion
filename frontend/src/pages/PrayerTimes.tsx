@@ -116,7 +116,7 @@ export const PrayerTimes = () => {
               <p
                 className="font-bold"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--text-on-glass)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
@@ -177,7 +177,7 @@ export const PrayerTimes = () => {
                 className="font-bold truncate"
                 title={locationLabel}
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--text-on-glass)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
@@ -220,7 +220,7 @@ export const PrayerTimes = () => {
           <p
             className="text-lg font-bold mb-1"
             style={{
-              color: 'var(--manuscript-cream)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
             }}
           >
@@ -265,7 +265,7 @@ export const PrayerTimes = () => {
                 <h3
                   className="text-base font-bold mb-1"
                   style={{
-                    color: 'var(--manuscript-cream)',
+                    color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
                   }}
                 >
@@ -274,7 +274,7 @@ export const PrayerTimes = () => {
                 <p
                   className="text-2xl font-bold tabular-nums"
                   style={{
-                    color: 'var(--manuscript-cream)',
+                    color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
                   }}
                 >
@@ -293,7 +293,7 @@ export const PrayerTimes = () => {
             <h3
               className="text-lg font-bold mb-4 flex items-center gap-2"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -314,7 +314,7 @@ export const PrayerTimes = () => {
                 <span
                   className="font-bold"
                   style={{
-                    color: 'var(--manuscript-cream)',
+                    color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
                   }}
                 >
@@ -331,7 +331,7 @@ export const PrayerTimes = () => {
                 <span
                   className="font-bold"
                   style={{
-                    color: 'var(--manuscript-cream)',
+                    color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
                   }}
                 >
@@ -345,7 +345,7 @@ export const PrayerTimes = () => {
             <h3
               className="text-lg font-bold mb-4 flex items-center gap-2"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -366,7 +366,7 @@ export const PrayerTimes = () => {
                 <span
                   className="font-bold"
                   style={{
-                    color: 'var(--manuscript-cream)',
+                    color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
                   }}
                 >
@@ -383,7 +383,7 @@ export const PrayerTimes = () => {
                 <span
                   className="font-bold"
                   style={{
-                    color: 'var(--manuscript-cream)',
+                    color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
                   }}
                 >
@@ -412,7 +412,7 @@ export const PrayerTimes = () => {
               <p
                 className="text-xl font-bold"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--text-on-glass)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
@@ -431,7 +431,7 @@ export const PrayerTimes = () => {
               <p
                 className="text-xl font-bold"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--text-on-glass)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
@@ -456,7 +456,7 @@ export const PrayerTimes = () => {
           <span
             className="text-sm"
             style={{
-              color: 'var(--manuscript-cream)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
             }}
           >

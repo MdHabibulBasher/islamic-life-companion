@@ -4,22 +4,14 @@ import type { ReactNode } from 'react'
 /**
  * Theme system
  * -----------
- * Four themes ship today, all sharing the same 14 CSS variables defined in
- * `index.css` under `[data-theme="…"]`:
- *
- *   teal-amber    — calm Islamic feel (default; the previous ihadis palette)
- *   purple-teal   — spiritual, meditative
- *   green-coral   — green = completed, coral = missed
- *   blue-amber    — premium, dark-friendly
- *
- * Switching the theme is a one-line mutation: it sets `data-theme` on
- * `<html>`. Every page repaints immediately because the Tailwind classes
- * (`bg-brand-primary`, `text-ink-body`, …) resolve through CSS variables.
- *
- * The choice is persisted to `localStorage` so it survives reloads.
+ * Dark-only for now. The app always applies the Deep Night palette (gold
+ * leaf on deep emerald/forest). `applyTheme` unconditionally adds `.dark`
+ * to <html>; `toggleTheme` is a no-op kept for API compatibility so call
+ * sites don't need to change. The choice is still persisted to localStorage
+ * (always 'dark') for forward-compat if light mode returns later.
  */
 
-export type ThemeId = 'teal-amber' | 'purple-teal' | 'green-coral' | 'blue-amber'
+export type ThemeId = 'light' | 'dark'
 
 export interface ThemeMeta {
   id: ThemeId
@@ -42,91 +34,43 @@ export interface ThemeMeta {
 
 export const THEMES: ThemeMeta[] = [
   {
-    id: 'teal-amber',
-    name: 'Teal & Amber',
-    tagline: 'Calm Islamic feel — teal for primary actions, amber for streaks & alerts.',
+    id: 'dark',
+    name: 'Deep Night',
+    tagline: 'Deep emerald/forest with gold leaf — premium, dark-friendly, easy on the eyes.',
     recommended: true,
     swatches: {
-      primary: '#2f6157',
-      light:   '#eef5ee',
-      fill:    '#417e38',
-      accent:  '#f59e0b',
-      fill2:   '#eef5ee',
-      surface: '#fdfcf7',
-    },
-  },
-  {
-    id: 'purple-teal',
-    name: 'Purple & Teal',
-    tagline: 'Spiritual & modern — purple for headings, teal as accent.',
-    swatches: {
-      primary: '#7c3aed',
-      light:   '#ddd6fe',
-      fill:    '#6d28d9',
-      accent:  '#0d9488',
-      fill2:   '#ede9fe',
-      surface: '#faf5ff',
-    },
-  },
-  {
-    id: 'green-coral',
-    name: 'Green & Coral',
-    tagline: 'Earthy & energetic — green for completed states, coral for outstanding.',
-    swatches: {
-      primary: '#16a34a',
-      light:   '#dcfce7',
-      fill:    '#15803d',
-      accent:  '#fb7185',
-      fill2:   '#f0fdf4',
-      surface: '#f0fdf4',
-    },
-  },
-  {
-    id: 'blue-amber',
-    name: 'Deep Blue & Amber',
-    tagline: 'Premium & dark-friendly — blue for primary, amber for streaks & highlights.',
-    swatches: {
-      primary: '#1d4ed8',
-      light:   '#dbeafe',
-      fill:    '#2563eb',
-      accent:  '#f59e0b',
-      fill2:   '#eff6ff',
-      surface: '#f8fafc',
+      primary: '#d4a017',
+      light:   '#1e3a32',
+      fill:    '#f0c75e',
+      accent:  '#f0c75e',
+      fill2:   '#163a32',
+      surface: '#0d2e29',
     },
   },
 ]
 
 const STORAGE_KEY = 'app:theme'
-const DEFAULT_THEME: ThemeId = 'teal-amber'
+const DEFAULT_THEME: ThemeId = 'dark'
 
 interface ThemeContextValue {
   theme: ThemeId
   meta: ThemeMeta
   setTheme: (id: ThemeId) => void
+  toggleTheme: () => void
   themes: ThemeMeta[]
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 /**
- * Apply the theme to <html> as `data-theme="…"`. Safe to call on the server
- * (guards `typeof document`) and before React mounts.
+ * Always apply `.dark` — dark-only theme. Safe to call on the server.
  */
-export function applyTheme(id: ThemeId): void {
+export function applyTheme(_id?: ThemeId): void {
   if (typeof document === 'undefined') return
-  document.documentElement.setAttribute('data-theme', id)
+  document.documentElement.classList.add('dark')
 }
 
 export function getStoredTheme(): ThemeId {
-  if (typeof window === 'undefined') return DEFAULT_THEME
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (raw && THEMES.some((t) => t.id === raw)) {
-      return raw as ThemeId
-    }
-  } catch {
-    /* localStorage may be unavailable in private mode */
-  }
   return DEFAULT_THEME
 }
 
@@ -135,19 +79,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // — no flash of the default before the effect runs.
   const [theme, setThemeState] = useState<ThemeId>(() => getStoredTheme())
 
-  // Keep <html data-theme=…> in sync on mount + on every change.
+  // Keep the `.dark` class on <html> in sync on mount + on every change.
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
 
-  const setTheme = useCallback((id: ThemeId) => {
-    setThemeState(id)
-    applyTheme(id)
+  const setTheme = useCallback((_id: ThemeId) => {
+    // Dark-only: ignore any request for light mode.
+    setThemeState('dark')
+    applyTheme('dark')
     try {
-      window.localStorage.setItem(STORAGE_KEY, id)
+      window.localStorage.setItem(STORAGE_KEY, 'dark')
     } catch {
       /* ignore quota / private-mode errors */
     }
+  }, [])
+
+  const toggleTheme = useCallback(() => {
+    // Dark-only: no-op. Kept for API compatibility with existing call sites.
   }, [])
 
   const meta = useMemo(
@@ -156,8 +105,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, meta, setTheme, themes: THEMES }),
-    [theme, meta, setTheme],
+    () => ({ theme, meta, setTheme, toggleTheme, themes: THEMES }),
+    [theme, meta, setTheme, toggleTheme],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

@@ -295,12 +295,7 @@ export const KanbanBoard = ({ tasks, onToggle, onDelete }: KanbanBoardProps) => 
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div
-        className="grid gap-3"
-        style={{
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-        }}
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {COLUMNS.map((column) => (
           <KanbanColumn
             key={column.id}
@@ -320,17 +315,6 @@ export const KanbanBoard = ({ tasks, onToggle, onDelete }: KanbanBoardProps) => 
       >
         {activeTask ? <KanbanCard task={activeTask} isOverlay /> : null}
       </DragOverlay>
-
-      {/* Mobile / narrow viewport fallback: stack the columns vertically
-          when the right pane gets below ~1000px so the cards stay readable. */}
-      <style>{`
-        @media (max-width: 1023px) {
-          [data-kanban-board] > div {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
-      <span data-kanban-board hidden />
     </DndContext>
   );
 };

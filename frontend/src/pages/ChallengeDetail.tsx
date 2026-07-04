@@ -88,7 +88,7 @@ export const ChallengeDetail: React.FC = () => {
   if (!id) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-        <p style={{ color: 'var(--manuscript-cream)' }}>Challenge not found.</p>
+        <p style={{ color: 'var(--text-on-glass)' }}>Challenge not found.</p>
         <button
           onClick={() => navigate('/challenges')}
           className="mt-4 underline"
@@ -181,7 +181,7 @@ export const ChallengeDetail: React.FC = () => {
           </p>
           <p
             className="text-xs mt-1"
-            style={{ color: 'var(--manuscript-cream)', opacity: 0.82 }}
+            style={{ color: 'var(--text-on-glass)', opacity: 0.82 }}
           >
             May Allah accept your prayers and keep you steadfast.
           </p>
@@ -251,7 +251,7 @@ export const ChallengeDetail: React.FC = () => {
               <h1
                 className="text-3xl sm:text-4xl font-bold leading-tight mb-3"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--text-on-glass)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                   textShadow: '0 2px 0 rgba(0,0,0,0.45)',
                 }}
@@ -262,7 +262,7 @@ export const ChallengeDetail: React.FC = () => {
               {challenge.description && (
                 <p
                   className="text-sm sm:text-base max-w-2xl leading-relaxed"
-                  style={{ color: 'var(--manuscript-cream)', opacity: 0.82 }}
+                  style={{ color: 'var(--text-on-glass)', opacity: 0.82 }}
                 >
                   {challenge.description}
                 </p>
@@ -289,7 +289,7 @@ export const ChallengeDetail: React.FC = () => {
               <div
                 className="text-[10px] uppercase font-bold mt-1"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--text-on-glass)',
                   opacity: 0.7,
                   letterSpacing: '0.18em',
                 }}
@@ -324,7 +324,7 @@ export const ChallengeDetail: React.FC = () => {
               <span
                 className="text-xs font-bold uppercase"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--text-on-glass)',
                   opacity: 0.85,
                   letterSpacing: '0.16em',
                 }}
@@ -409,7 +409,7 @@ export const ChallengeDetail: React.FC = () => {
               <div
                 className="flex-1 text-center text-sm italic py-3 rounded-xl"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--text-on-glass)',
                   opacity: 0.7,
                   border: '1px dashed var(--gold-mid)',
                 }}
@@ -441,7 +441,7 @@ export const ChallengeDetail: React.FC = () => {
           <div
             className="text-sm leading-relaxed mb-6"
             style={{
-              color: 'var(--manuscript-cream)',
+              color: 'var(--text-on-glass)',
               opacity: 0.85,
               fontFamily: 'Georgia, "Times New Roman", serif',
             }}
@@ -541,7 +541,7 @@ const StatTile: React.FC<{ icon: React.ReactNode; value: string; label: string }
     <div
       className="font-bold text-lg leading-none"
       style={{
-        color: 'var(--manuscript-cream)',
+        color: 'var(--text-on-glass)',
         fontFamily: 'Georgia, "Times New Roman", serif',
       }}
     >
@@ -550,7 +550,7 @@ const StatTile: React.FC<{ icon: React.ReactNode; value: string; label: string }
     <div
       className="text-[10px] uppercase font-bold mt-1"
       style={{
-        color: 'var(--manuscript-cream)',
+        color: 'var(--text-on-glass)',
         opacity: 0.7,
         letterSpacing: '0.18em',
       }}
@@ -566,7 +566,7 @@ const RuleRow: React.FC<{ text: string }> = ({ text }) => (
       className="mt-2 inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
       style={{ background: 'var(--gold-mid)' }}
     />
-    <span style={{ color: 'var(--manuscript-cream)', opacity: 0.85 }}>{text}</span>
+    <span style={{ color: 'var(--text-on-glass)', opacity: 0.85 }}>{text}</span>
   </li>
 )
 
@@ -584,7 +584,7 @@ const RequirementRow: React.FC<{ text: string }> = ({ text }) => (
       readOnly
       style={{ accentColor: 'var(--gold-mid)' }}
     />
-    <span style={{ color: 'var(--manuscript-cream)', opacity: 0.85 }}>{text}</span>
+    <span style={{ color: 'var(--text-on-glass)', opacity: 0.85 }}>{text}</span>
   </li>
 )
 

@@ -12,15 +12,14 @@ import {
   Eye,
   EyeOff,
   Info,
-  Palette,
   Moon,
+  RefreshCw,
+  Download,
 } from 'lucide-react'
 import { Button, Input, Select } from '../components/Form'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../services/api'
 import { useToast } from '../components/Toast'
-import { ThemeSwitcher } from '../components/ThemeSwitcher'
-import { useTheme } from '../contexts/ThemeContext'
 import {
   OrnateCard,
   PageHeader,
@@ -72,7 +71,7 @@ interface UserPreferences {
   hijri_offset: number
 }
 
-type Tab = 'profile' | 'notifications' | 'preferences' | 'prayer' | 'appearance' | 'security'
+type Tab = 'profile' | 'notifications' | 'preferences' | 'prayer' | 'security'
 
 export const UserSettings: React.FC = () => {
   const queryClient = useQueryClient()
@@ -277,7 +276,6 @@ export const UserSettings: React.FC = () => {
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'preferences', label: 'Preferences', icon: SettingsIcon },
     { id: 'prayer', label: 'Prayer', icon: Moon },
-    { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'security', label: 'Security', icon: Lock },
   ]
 
@@ -686,10 +684,60 @@ export const UserSettings: React.FC = () => {
               <Save className="w-4 h-4" />
               {updatePrayerSettingsMutation.isPending ? 'Saving…' : 'Save Prayer Settings'}
             </Button>
+
+            {/* ===== Data tools ===== */}
+            <div className="pt-4 border-t" style={{ borderColor: 'var(--gold-mid)' }}>
+              <h3
+                className="text-sm font-bold uppercase mb-3"
+                style={{ color: 'var(--gold-deep)', letterSpacing: '0.14em' }}
+              >
+                Data Tools
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={async () => {
+                    try {
+                      await prayerTrackingService.recomputeStreaks()
+                      success('Streaks recomputed successfully')
+                    } catch (e) {
+                      error('Failed to recompute streaks')
+                    }
+                  }}
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Recompute Streaks
+                </Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const csv = await prayerTrackingService.exportCsv()
+                      const blob = new Blob([csv], { type: 'text/csv' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = 'prayer-tracker-export.csv'
+                      a.click()
+                      URL.revokeObjectURL(url)
+                      success('CSV exported successfully')
+                    } catch (e) {
+                      error('Failed to export CSV')
+                    }
+                  }}
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </Button>
+              </div>
+              <p className="text-xs mt-2" style={{ color: 'var(--gold-deep)', opacity: 0.7 }}>
+                Recompute recalculates streaks from scratch. Export downloads your prayer history as a CSV file.
+              </p>
+            </div>
           </div>
         )}
-
-        {activeTab === 'appearance' && <AppearancePanel />}
 
         {activeTab === 'security' && (
           <div className="space-y-6">
@@ -852,73 +900,3 @@ const ToggleRow: React.FC<{
     />
   </div>
 )
-/**
- * Appearance tab — a theme picker powered by `useTheme()` + `<ThemeSwitcher />`.
- * Updates the `data-theme` attribute on <html> immediately and persists to
- * localStorage, so the choice survives reloads and the next page render.
- */
-const AppearancePanel: React.FC = () => {
-  const { meta, themes } = useTheme()
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2
-          className="text-2xl font-bold"
-          style={{
-            color: 'var(--emerald-deep)',
-            fontFamily: 'Georgia, "Times New Roman", serif',
-          }}
-        >
-          Appearance
-        </h2>
-        <p
-          className="text-sm mt-1"
-          style={{ color: 'var(--gold-deep)' }}
-        >
-          Pick the colour palette for the whole app. The change is instant and
-          applies to every page — Prayer Tracker, Settings, Dashboard, and beyond.
-        </p>
-      </div>
-
-      <ThemeSwitcher />
-
-      <div
-        className="rounded-2xl p-4 text-sm"
-        style={{
-          background:
-            'linear-gradient(180deg, var(--manuscript-cream) 0%, var(--manuscript-cream-2) 100%)',
-          border: '1px solid var(--gold-mid)',
-          color: 'var(--gold-deep)',
-        }}
-      >
-        <div className="flex items-center gap-2 mb-2">
-          <Info className="w-4 h-4" style={{ color: 'var(--emerald)' }} />
-          <span
-            className="font-semibold"
-            style={{
-              color: 'var(--emerald-deep)',
-              fontFamily: 'Georgia, "Times New Roman", serif',
-            }}
-          >
-            Currently active
-          </span>
-        </div>
-        <p>
-          <strong
-            style={{
-              color: 'var(--emerald-deep)',
-              fontFamily: 'Georgia, "Times New Roman", serif',
-            }}
-          >
-            {meta.name}
-          </strong>
-          {' — '}
-          {meta.tagline}
-        </p>
-        <p className="mt-2 text-xs">
-          {themes.length} themes available
-        </p>
-      </div>
-    </div>
-  )
-}

@@ -5,6 +5,16 @@
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Islamic Life Companion</title>
+    <!-- Pre-hydration theme script: always apply `.dark` (dark-only theme)
+         before React mounts so there's no flash. -->
+    <script>
+      (function () {
+        try {
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('app:theme', 'dark');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

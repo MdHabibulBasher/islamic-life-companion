@@ -42,15 +42,12 @@ import {
   Circle,
   Flame,
   Trophy,
-  Settings,
   BarChart3,
   Sun,
   Sunset,
   Moon,
   Sunrise,
   CloudMoon,
-  Download,
-  RefreshCw,
   Info,
   Users,
   Sparkles,
@@ -59,8 +56,6 @@ import {
   Clock,
   TrendingUp,
   Check,
-  BookOpen,
-  Lightbulb,
   Calendar as CalendarIcon,
   RotateCcw,
 } from 'lucide-react'
@@ -83,35 +78,38 @@ import { format12Hour } from '../utils'
 
 // ============================================================================
 // Per-prayer tint — driven by the active theme so each theme gets its own
-// subtle palette variation.
+// subtle palette variation. Uses inline `style` gradients (not Tailwind
+// arbitrary classes) because the values are runtime-constructed and Tailwind
+// JIT cannot see `from-[${light}]` at build time.
 // ============================================================================
 function usePrayerTints(): Record<PrayerName, { tint: string; ink: string; icon: React.ReactNode }> {
   const { meta } = useTheme()
   const accent = meta.swatches.accent
   const light = meta.swatches.light
+  // Returns a CSS `linear-gradient` string for the left edge accent strip.
   return {
     [PrayerName.FAJR]: {
-      tint: `from-[${light}] via-white to-[${light}]`,
+      tint: `linear-gradient(180deg, ${light} 0%, ${accent} 50%, ${light} 100%)`,
       ink: 'text-brand-primary',
       icon: <Sunrise size={20} />,
     },
     [PrayerName.DHUHR]: {
-      tint: `from-[${light}] via-white to-[${accent}]/20`,
+      tint: `linear-gradient(180deg, ${light} 0%, ${accent} 50%, ${accent}33 100%)`,
       ink: 'text-brand-primary',
       icon: <Sun size={20} />,
     },
     [PrayerName.ASR]: {
-      tint: `from-[${accent}]/15 via-white to-[${light}]`,
+      tint: `linear-gradient(180deg, ${accent}26 0%, ${accent} 50%, ${light} 100%)`,
       ink: 'text-brand-primary',
       icon: <Sunset size={20} />,
     },
     [PrayerName.MAGHRIB]: {
-      tint: `from-[${accent}]/25 via-white to-[${light}]`,
+      tint: `linear-gradient(180deg, ${accent}40 0%, ${accent} 50%, ${light} 100%)`,
       ink: 'text-brand-primary',
       icon: <CloudMoon size={20} />,
     },
     [PrayerName.ISHA]: {
-      tint: `from-brand-deep/10 via-white to-[${light}]`,
+      tint: `linear-gradient(180deg, rgba(30,36,30,0.10) 0%, ${accent} 50%, ${light} 100%)`,
       ink: 'text-brand-primary',
       icon: <Moon size={20} />,
     },
@@ -146,7 +144,7 @@ const dayCompletionTone = (count: number): DayTone => {
     return {
       bg: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
       border: 'var(--gold-mid)',
-      text: 'var(--manuscript-cream)',
+      text: 'var(--manuscript-cream, #fbf3df)',
       sub: 'var(--gold-mid)',
     }
   }
@@ -154,7 +152,7 @@ const dayCompletionTone = (count: number): DayTone => {
     return {
       bg: 'linear-gradient(180deg, rgba(212,160,23,0.14) 0%, rgba(154,107,14,0.05) 100%)',
       border: 'var(--gold-deep)',
-      text: 'var(--manuscript-cream)',
+      text: 'var(--manuscript-cream, #fbf3df)',
       sub: 'var(--gold-mid)',
     }
   }
@@ -162,7 +160,7 @@ const dayCompletionTone = (count: number): DayTone => {
     return {
       bg: 'linear-gradient(180deg, rgba(240,199,94,0.18) 0%, rgba(212,160,23,0.08) 100%)',
       border: 'var(--gold-mid)',
-      text: 'var(--manuscript-cream)',
+      text: 'var(--manuscript-cream, #fbf3df)',
       sub: 'var(--gold-mid)',
     }
   }
@@ -192,7 +190,11 @@ const PRAYER_SUBTITLE: Record<PrayerName, string> = {
 
 const GlassCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <div
-    className={`rounded-2xl bg-surface-card/80 backdrop-blur-md border border-edge-soft shadow-[0_2px_24px_-16px_rgba(15,23,42,0.12)] ${className}`}
+    className={`rounded-2xl backdrop-blur-md border shadow-[0_2px_24px_-16px_rgba(0,0,0,0.4)] ${className}`}
+    style={{
+      background: 'rgba(6, 30, 25, 0.78)',
+      borderColor: 'var(--gold-mid)',
+    }}
   >
     {children}
   </div>
@@ -210,14 +212,14 @@ const PrayerReferenceCard: React.FC<{
   icon: React.ReactNode
 }> = ({ prayer, startTime, endTime, icon }) => {
   const ref = PRAYER_REFERENCE[prayer]
-  const [expanded, setExpanded] = useState(false)
   return (
     <div
       className="relative rounded-xl overflow-hidden flex flex-col"
       style={{
-        background:
-          'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+        background: 'rgba(6, 30, 25, 0.78)',
         border: '1px solid var(--gold-mid)',
+        backdropFilter: 'blur(24px) saturate(1.5)',
+        WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
       }}
     >
       <div className="p-3 flex-1 flex flex-col">
@@ -238,7 +240,7 @@ const PrayerReferenceCard: React.FC<{
               <div
                 className="text-sm font-bold leading-tight"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
@@ -255,148 +257,25 @@ const PrayerReferenceCard: React.FC<{
           <Clock size={11} className="shrink-0" style={{ color: 'var(--gold-mid)' }} />
           <span
             className="text-xs font-semibold tabular-nums"
-            style={{ color: 'var(--manuscript-cream)' }}
+            style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
           >
             {format12Hour(startTime)}
           </span>
           <span className="text-[10px]" style={{ color: 'var(--gold-mid)' }}>→</span>
           <span
             className="text-xs font-semibold tabular-nums"
-            style={{ color: 'var(--manuscript-cream)' }}
+            style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
           >
             {format12Hour(endTime)}
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase transition self-start"
-          style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
-        >
-          {expanded ? 'Hide' : 'Dua'} {expanded ? '×' : '+'}
-        </button>
-
-        {expanded && (
-          <div className="mt-2 space-y-2 text-left">
-            <div
-              className="rounded-lg p-2"
-              style={{
-                background: 'rgba(0,0,0,0.20)',
-                border: '1px solid var(--gold-mid)',
-              }}
-            >
-              <div
-                className="flex items-center gap-1 text-[10px] font-semibold uppercase mb-1"
-                style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
-              >
-                <BookOpen size={10} /> Dua
-              </div>
-              <div
-                className="text-sm leading-relaxed font-semibold"
-                dir="rtl"
-                style={{ color: 'var(--manuscript-cream)' }}
-              >
-                {ref.dua.arabic}
-              </div>
-              <div
-                className="text-[11px] italic mt-1"
-                style={{ color: 'var(--gold-light)' }}
-              >
-                {ref.dua.transliteration}
-              </div>
-              <div
-                className="text-[11px] mt-1"
-                style={{ color: 'var(--manuscript-cream)', opacity: 0.9 }}
-              >
-                &ldquo;{ref.dua.translation}&rdquo;
-              </div>
-            </div>
-
-            <div
-              className="rounded-lg p-2"
-              style={{
-                background: 'rgba(212,160,23,0.10)',
-                border: '1px solid var(--gold-deep)',
-              }}
-            >
-              <div
-                className="flex items-center gap-1 text-[10px] font-semibold uppercase mb-1"
-                style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
-              >
-                <Lightbulb size={10} /> Masala
-              </div>
-              <div
-                className="text-[11px] leading-relaxed"
-                style={{ color: 'var(--manuscript-cream)', opacity: 0.92 }}
-              >
-                {ref.masala}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
 }
 
 // Progress ring — uses inline color so it tracks the theme's primary token.
-const ProgressRing: React.FC<{
-  value: number
-  size?: number
-  trackColor?: string
-  ringColor?: string
-  textColor?: string
-  subColor?: string
-}> = ({
-  value,
-  size = 104,
-  trackColor = 'rgba(15,23,42,0.18)',
-  ringColor = '#0f766e',
-  textColor = '#0f172a',
-  subColor = '#64748b',
-}) => {
-  const stroke = 6
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
-  const offset = c - (value / 5) * c
-  const pct = Math.round((value / 5) * 100)
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} stroke={trackColor} strokeWidth={stroke} fill="none" />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={ringColor}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 600ms ease' }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div
-          className="text-2xl font-bold tabular-nums leading-none"
-          style={{ color: textColor, fontFamily: 'Georgia, "Times New Roman", serif' }}
-        >
-          {value}/5
-        </div>
-        <div
-          className="text-[10px] uppercase tracking-[0.18em] font-bold mt-1"
-          style={{ color: subColor }}
-        >
-          {pct}%
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ============================================================================
 // Prayer reference — duas & masail for the first row of the dashboard.
 // ============================================================================
@@ -481,19 +360,20 @@ const PrayerRow: React.FC<{
         done
           ? {
               background:
-                'linear-gradient(180deg, rgba(212,160,23,0.10) 0%, rgba(154,107,14,0.05) 100%)',
+                'linear-gradient(180deg, rgba(6, 30, 25, 0.78) 0%, rgba(6, 30, 25, 0.78) 100%)',
               border: '1px solid var(--gold-mid)',
               boxShadow: '0 4px 24px -12px rgba(0,0,0,0.4)',
+              backdropFilter: 'blur(24px) saturate(1.5)',
+              WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
             }
           : {
-              background:
-                'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+              background: 'rgba(6, 30, 25, 0.78)',
               border: '1px solid var(--gold-mid)',
+              backdropFilter: 'blur(24px) saturate(1.5)',
+              WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
             }
       }
     >
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${meta.tint}`} />
-
       <div className="flex items-center gap-4 p-4 pl-6">
         <button
           onClick={onToggle}
@@ -504,7 +384,7 @@ const PrayerRow: React.FC<{
           {done ? (
             <CheckCircle2 size={40} style={{ color: 'var(--gold-mid)' }} strokeWidth={2} />
           ) : (
-            <Circle size={40} style={{ color: 'var(--manuscript-cream)', opacity: 0.5 }} />
+            <Circle size={40} style={{ color: 'var(--gold-mid, #d4a017)', opacity: 0.5 }} />
           )}
         </button>
 
@@ -514,7 +394,7 @@ const PrayerRow: React.FC<{
             <h3
               className="text-lg font-bold"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--manuscript-cream, #fbf3df)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -552,7 +432,7 @@ const PrayerRow: React.FC<{
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
                 style={{
                   background: 'rgba(212,160,23,0.20)',
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   border: '1px solid var(--gold-mid)',
                   letterSpacing: '0.16em',
                 }}
@@ -588,7 +468,7 @@ const PrayerRow: React.FC<{
                   }
                 : {
                     background: 'rgba(0,0,0,0.25)',
-                    color: 'var(--manuscript-cream)',
+                    color: 'var(--manuscript-cream, #fbf3df)',
                     border: '1px solid var(--gold-mid)',
                     opacity: 0.5,
                   }
@@ -684,7 +564,7 @@ const QadaTile: React.FC<{
         <div
           className="text-sm font-bold"
           style={{
-            color: 'var(--manuscript-cream)',
+            color: 'var(--text-on-dark-glass)',
             fontFamily: 'Georgia, "Times New Roman", serif',
           }}
         >
@@ -714,7 +594,7 @@ const QadaTile: React.FC<{
             className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition disabled:opacity-50 border"
             style={{
               background: 'rgba(0,0,0,0.25)',
-              color: 'var(--manuscript-cream)',
+              color: 'var(--text-on-dark-glass)',
               border: '1px solid var(--gold-deep)',
               letterSpacing: '0.16em',
             }}
@@ -776,7 +656,7 @@ const SettingsModal: React.FC<{
 
   const labelCls = 'block text-[10px] font-bold uppercase mb-1.5'
   const inputStyle: React.CSSProperties = {
-    background: 'rgba(255, 255, 255, 0.55)',
+    background: 'rgba(0, 0, 0, 0.30)',
     color: 'var(--emerald-deep)',
     border: '1px solid var(--gold-mid)',
   }
@@ -1102,15 +982,6 @@ export const PrayerTracker = () => {
   // (either `track_check` with delta = -1, or `track_uncheck` with
   // delta = +1) so the lifetime `prayer_qada` counters stay in sync.
 
-  const recomputeMutation = useMutation({
-    mutationFn: () => prayerTrackingService.recomputeStreaks(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prayerStreaks'] })
-      queryClient.invalidateQueries({ queryKey: ['prayerStatistics'] })
-      success('Streaks recomputed')
-    },
-  })
-
   // Qada tile "Mark complete" mutation — writes a single
   // ``PrayerQadaEvent`` (delta = -1) AND upserts a
   // ``prayer_tracking`` row with ``is_completed = true`` so the
@@ -1224,22 +1095,6 @@ export const PrayerTracker = () => {
       tracking_date: selectedDate,
     })
 
-  const handleExport = async () => {
-    try {
-      const csv = await prayerTrackingService.exportCsv()
-      const blob = new Blob([csv], { type: 'text/csv' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `prayer-tracking-${getLocalDate()}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
-      success('CSV downloaded')
-    } catch {
-      error('Failed to export CSV')
-    }
-  }
-
   const tabs: { id: ViewMode; label: string }[] = [
     { id: 'daily', label: 'Today' },
     { id: 'weekly', label: 'Week' },
@@ -1294,7 +1149,7 @@ export const PrayerTracker = () => {
               <h1
                 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
@@ -1302,7 +1157,7 @@ export const PrayerTracker = () => {
               </h1>
               <p
                 className="mt-1 text-sm max-w-md"
-                style={{ color: 'var(--manuscript-cream)', opacity: 0.82 }}
+                style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.82 }}
               >
                 Build a steady rhythm of five daily prayers, streaks, and qada — all in one place.
               </p>
@@ -1325,7 +1180,7 @@ export const PrayerTracker = () => {
                       style={{
                         background:
                           'linear-gradient(135deg, rgba(240,199,94,0.10) 0%, rgba(212,160,23,0.06) 100%)',
-                        color: 'var(--manuscript-cream)',
+                        color: 'var(--manuscript-cream, #fbf3df)',
                         borderColor: 'var(--gold-mid)',
                       }}
                     >
@@ -1338,7 +1193,7 @@ export const PrayerTracker = () => {
                       className="text-[10px] px-2.5 py-1 rounded-full font-semibold capitalize border"
                       style={{
                         background: 'rgba(251,243,223,0.08)',
-                        color: 'var(--manuscript-cream)',
+                        color: 'var(--manuscript-cream, #fbf3df)',
                         borderColor: 'rgba(240,199,94,0.35)',
                       }}
                     >
@@ -1347,60 +1202,6 @@ export const PrayerTracker = () => {
                   ))}
                 </div>
               )}
-            </div>
-
-            <div className="flex items-center gap-5 shrink-0">
-              <ProgressRing
-                value={visibleDay?.completed_count ?? 0}
-                trackColor="rgba(240,199,94,0.22)"
-                ringColor="var(--gold-glow)"
-                textColor="var(--manuscript-cream)"
-                subColor="var(--gold-glow)"
-              />
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => recomputeMutation.mutate()}
-                  disabled={recomputeMutation.isPending}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition disabled:opacity-50 border"
-                  style={{
-                    background: 'rgba(251,243,223,0.10)',
-                    color: 'var(--manuscript-cream)',
-                    borderColor: 'var(--gold-mid)',
-                  }}
-                  title="Recompute streaks from scratch"
-                >
-                  <RefreshCw
-                    size={12}
-                    className={recomputeMutation.isPending ? 'animate-spin' : ''}
-                  />
-                  Recompute
-                </button>
-                <button
-                  onClick={handleExport}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border"
-                  style={{
-                    background: 'rgba(251,243,223,0.10)',
-                    color: 'var(--manuscript-cream)',
-                    borderColor: 'var(--gold-mid)',
-                  }}
-                >
-                  <Download size={12} />
-                  Export CSV
-                </button>
-                <button
-                  onClick={() => setSettingsOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border"
-                  style={{
-                    background:
-                      'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
-                    color: 'var(--emerald-deep)',
-                    borderColor: 'var(--gold-deep)',
-                  }}
-                >
-                  <Settings size={12} />
-                  Settings
-                </button>
-              </div>
             </div>
           </div>
         </OrnateCard>
@@ -1436,7 +1237,7 @@ export const PrayerTracker = () => {
                         }
                       : {
                           background: 'transparent',
-                          color: 'var(--manuscript-cream)',
+                          color: 'var(--manuscript-cream, #fbf3df)',
                           border: '1px solid transparent',
                           opacity: 0.85,
                         }
@@ -1477,6 +1278,87 @@ export const PrayerTracker = () => {
             </div>
           )}
         </OrnateCard>
+
+        {/* ============================ SUNRISE & SUNSET ============================ */}
+        {view !== 'statistics' && visibleDay && (
+          <div className="grid grid-cols-2 gap-3">
+            <div
+              className="rounded-xl p-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(6, 30, 25, 0.78)',
+                border: '1px solid var(--gold-mid)',
+                backdropFilter: 'blur(24px) saturate(1.5)',
+              }}
+            >
+              <div
+                className="shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-full"
+                style={{
+                  background: 'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                  color: 'var(--emerald-deep)',
+                  border: '1px solid var(--gold-deep)',
+                }}
+              >
+                <Sunrise size={16} />
+              </div>
+              <div>
+                <div
+                  className="text-sm font-bold"
+                  style={{
+                    color: 'var(--manuscript-cream, #fbf3df)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  Sunrise
+                </div>
+                <div
+                  className="text-xs font-semibold tabular-nums"
+                  style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+                >
+                  {visibleDay.sunrise ? format12Hour(visibleDay.sunrise) : '—'}
+                </div>
+              </div>
+            </div>
+            <div
+              className="rounded-xl p-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(6, 30, 25, 0.78)',
+                border: '1px solid var(--gold-mid)',
+                backdropFilter: 'blur(24px) saturate(1.5)',
+              }}
+            >
+              <div
+                className="shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-full"
+                style={{
+                  background: 'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                  color: 'var(--emerald-deep)',
+                  border: '1px solid var(--gold-deep)',
+                }}
+              >
+                <Sunset size={16} />
+              </div>
+              <div>
+                <div
+                  className="text-sm font-bold"
+                  style={{
+                    color: 'var(--manuscript-cream, #fbf3df)',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                >
+                  Sunset
+                </div>
+                <div
+                  className="text-xs font-semibold tabular-nums"
+                  style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+                >
+                  {(() => {
+                    const maghribTime = visibleDay?.prayers.find((p) => p.prayer_name === 'maghrib')?.scheduled_time
+                    return maghribTime ? format12Hour(maghribTime) : '—'
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ============================ PRAYER REFERENCE ROW ============================ */}
         {view !== 'statistics' && (
@@ -1536,7 +1418,7 @@ export const PrayerTracker = () => {
                       <div
                         className="text-sm font-bold"
                         style={{
-                          color: 'var(--manuscript-cream)',
+                          color: 'var(--manuscript-cream, #fbf3df)',
                           fontFamily: 'Georgia, "Times New Roman", serif',
                         }}
                       >
@@ -1646,7 +1528,7 @@ export const PrayerTracker = () => {
                 className="p-1.5 rounded-lg transition border"
                 style={{
                   background: 'rgba(0,0,0,0.25)',
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   borderColor: 'var(--gold-mid)',
                 }}
                 aria-label="Previous month"
@@ -1656,7 +1538,7 @@ export const PrayerTracker = () => {
               <h2
                 className="text-lg font-bold"
                 style={{
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
@@ -1674,7 +1556,7 @@ export const PrayerTracker = () => {
                 className="p-1.5 rounded-lg transition border"
                 style={{
                   background: 'rgba(0,0,0,0.25)',
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   borderColor: 'var(--gold-mid)',
                 }}
                 aria-label="Next month"
@@ -1683,7 +1565,7 @@ export const PrayerTracker = () => {
               </button>
             </div>
             <div
-              className="grid grid-cols-7 gap-2 text-center text-[10px] font-bold uppercase mb-2"
+              className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-[9px] sm:text-[10px] font-bold uppercase mb-2"
               style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
             >
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
@@ -1767,7 +1649,7 @@ const QadaCard: React.FC<{
             <h2
               className="text-lg font-bold leading-tight"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-dark-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -1788,7 +1670,7 @@ const QadaCard: React.FC<{
           <div
             className="text-3xl font-bold leading-none tabular-nums"
             style={{
-              color: 'var(--manuscript-cream)',
+              color: 'var(--text-on-dark-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
             }}
           >
@@ -1869,7 +1751,7 @@ const DateField: React.FC<{
       <span
         className="pl-3 pr-1 text-sm font-semibold"
         style={{
-          color: 'var(--manuscript-cream)',
+          color: 'var(--manuscript-cream, #fbf3df)',
           fontFamily: 'Georgia, "Times New Roman", serif',
         }}
       >
@@ -2002,7 +1884,7 @@ const StatsView: React.FC<{
             <div
               className="text-lg font-bold mt-0.5"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--manuscript-cream, #fbf3df)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -2046,7 +1928,7 @@ const StatsView: React.FC<{
               className="px-3 py-2 rounded-xl text-xs font-semibold transition border self-end"
               style={{
                 background: 'rgba(0,0,0,0.25)',
-                color: 'var(--manuscript-cream)',
+                color: 'var(--manuscript-cream, #fbf3df)',
                 borderColor: 'var(--gold-mid)',
               }}
             >
@@ -2066,7 +1948,7 @@ const StatsView: React.FC<{
               className="px-3 py-2 rounded-xl text-xs font-semibold transition border self-end"
               style={{
                 background: 'rgba(0,0,0,0.25)',
-                color: 'var(--manuscript-cream)',
+                color: 'var(--manuscript-cream, #fbf3df)',
                 borderColor: 'var(--gold-mid)',
               }}
             >
@@ -2117,7 +1999,7 @@ const StatsView: React.FC<{
           <h3
             className="text-base font-bold"
             style={{
-              color: 'var(--manuscript-cream)',
+              color: 'var(--manuscript-cream, #fbf3df)',
               fontFamily: 'Georgia, "Times New Roman", serif',
             }}
           >
@@ -2134,7 +2016,7 @@ const StatsView: React.FC<{
                   <span
                     className="font-bold"
                     style={{
-                      color: 'var(--manuscript-cream)',
+                      color: 'var(--manuscript-cream, #fbf3df)',
                       fontFamily: 'Georgia, "Times New Roman", serif',
                     }}
                   >
@@ -2169,7 +2051,7 @@ const StatsView: React.FC<{
         <p
           className="text-sm"
           style={{
-            color: 'var(--manuscript-cream)',
+            color: 'var(--manuscript-cream, #fbf3df)',
             fontFamily: 'Georgia, "Times New Roman", serif',
           }}
         >
@@ -2230,7 +2112,7 @@ const StatTile: React.FC<{
       <div
         className="text-3xl font-bold mt-1 tabular-nums"
         style={{
-          color: isGold ? 'var(--emerald-deep)' : 'var(--manuscript-cream)',
+          color: isGold ? 'var(--emerald-deep)' : 'var(--manuscript-cream, #fbf3df)',
           fontFamily: 'Georgia, "Times New Roman", serif',
         }}
       >
@@ -2319,7 +2201,7 @@ const MonthGrid: React.FC<{ days: DayTrackingResponse[]; year: number; month: nu
   const blanks = Array.from({ length: firstWeekday }, (_, i) => i)
 
   return (
-    <div className="grid grid-cols-7 gap-1.5">
+    <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
       {blanks.map((b) => (
         <div key={`blank-${b}`} />
       ))}
@@ -2338,9 +2220,9 @@ const MonthGrid: React.FC<{ days: DayTrackingResponse[]; year: number; month: nu
             }}
             title={`${d.date}: ${d.completed_count}/5`}
           >
-            <span className="text-[10px] opacity-80">{dayNum}</span>
+            <span className="text-[9px] sm:text-[10px] opacity-80">{dayNum}</span>
             <span
-              className="text-sm font-bold tabular-nums leading-none mt-0.5"
+              className="text-xs sm:text-sm font-bold tabular-nums leading-none mt-0.5"
               style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
             >
               {d.completed_count}/5

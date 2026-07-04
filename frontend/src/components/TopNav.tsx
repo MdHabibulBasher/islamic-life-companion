@@ -8,7 +8,6 @@ import {
   X,
   Calendar,
   CheckSquare,
-  Clock,
   Trophy,
   Menu,
   Moon,
@@ -16,7 +15,6 @@ import {
 import { useState } from 'react'
 import { useAuth } from '../hooks'
 import { useLocationSync } from '../hooks/useLocationSync'
-import { CompactThemeSwitcher } from './ThemeSwitcher'
 import { Star8, GoldDivider } from './IslamicOrnamentBG'
 import { LocationPicker } from './LocationPicker'
 import Logo from '../assets/Logo.png'
@@ -49,7 +47,6 @@ export const TopNav = () => {
     { label: 'Dashboard', href: '/', icon: Home },
     { label: 'Calendar', href: '/calendar', icon: Calendar },
     { label: 'To-Do', href: '/todo', icon: CheckSquare },
-    { label: 'Prayer', href: '/prayer-times', icon: Clock },
     { label: 'Tracker', href: '/prayer-tracker', icon: Trophy },
     { label: 'Fasting', href: '/fasting', icon: Moon },
     { label: 'Challenges', href: '/challenges', icon: Trophy },
@@ -182,10 +179,9 @@ export const TopNav = () => {
             </div>
           </nav>
 
-          {/* Right side — location + theme switcher + logout */}
+          {/* Right side — location + logout */}
           <div className="flex items-center gap-2 shrink-0">
             <LocationPicker compact onLocationChange={syncLocation} />
-            <CompactThemeSwitcher />
             <button
               onClick={logout}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition"
@@ -256,7 +252,6 @@ export const TopNav = () => {
           </Link>
           <div className="flex items-center gap-1.5">
             <LocationPicker compact onLocationChange={syncLocation} />
-            <CompactThemeSwitcher />
             <button
               onClick={() => setShowMenu(!showMenu)}
               className="p-2 rounded-lg transition"

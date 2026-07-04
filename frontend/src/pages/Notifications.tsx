@@ -244,7 +244,7 @@ export const Notifications: React.FC = () => {
                     className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-[0.16em] flex-shrink-0"
                     style={{
                       background: tint.color,
-                      color: 'var(--manuscript-cream)',
+                      color: 'var(--text-on-glass)',
                       letterSpacing: '0.16em',
                     }}
                   >

@@ -127,18 +127,10 @@ export const Signup = () => {
               <Star8 size={14} />
             </div>
 
-            {/* Brand mark */}
-            <div
-              className="flex items-center justify-center gap-3 mb-3"
-              style={{ color: 'var(--gold-mid)' }}
-            >
-              <CrescentStar size={36} />
-            </div>
-
             <h1
               className="text-3xl sm:text-4xl font-bold tracking-tight mb-1"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -146,7 +138,7 @@ export const Signup = () => {
             </h1>
             <p
               className="text-sm sm:text-base max-w-md mx-auto"
-              style={{ color: 'var(--manuscript-cream)', opacity: 0.82 }}
+              style={{ color: 'var(--text-on-glass)', opacity: 0.82 }}
             >
               Begin your spiritual journey — habits, prayer times, qada, and Quran in one illuminated space.
             </p>
@@ -155,9 +147,6 @@ export const Signup = () => {
 
         {/* Manuscript form card — uses shared OrnateCard like the rest of the site */}
         <OrnateCard variant="warm" topBar corners="all" className="!p-6 sm:!p-8">
-          <div className="flex items-center justify-center mb-3 text-[var(--gold-mid)]">
-            <CrescentStar size={28} />
-          </div>
           <h2
             className="text-2xl font-bold mb-1 text-center"
             style={{

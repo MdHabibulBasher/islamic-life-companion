@@ -199,6 +199,10 @@ export default {
           muted:      'var(--text-muted)',
           inverse:    'var(--text-inverse)',
         },
+        // Short aliases — `text-ink` / `text-ink-muted` — so call sites read
+        // cleanly and the swap from `var(--gold-deep)` is obvious.
+        ink:        'var(--text-strong)',
+        'ink-muted':'var(--text-muted)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
@@ -207,6 +211,12 @@ export default {
         '2xl': '1rem',
         '3xl': '1.5rem',
         '4xl': '2rem',
+      },
+      backdropBlur: {
+        glass: '24px',
+      },
+      backdropSaturate: {
+        glass: '1.5',
       },
       backgroundImage: {
         'gradient-primary-green': 'linear-gradient(135deg, #0F7A3D 0%, #059669 100%)',

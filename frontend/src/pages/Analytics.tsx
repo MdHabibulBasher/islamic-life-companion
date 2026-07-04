@@ -334,14 +334,14 @@ export const Analytics: React.FC = () => {
     fontWeight: 600,
   }
   const tileValue: React.CSSProperties = {
-    color: 'var(--manuscript-cream, #fbf3df)',
+    color: 'var(--text-on-glass)',
     fontFamily: 'Georgia, "Times New Roman", serif',
     fontSize: '1.875rem',
     fontWeight: 700,
     lineHeight: 1.2,
   }
   const tileSub: React.CSSProperties = {
-    color: 'var(--manuscript-cream, #fbf3df)',
+    color: 'var(--text-on-glass)',
     opacity: 0.55,
     fontSize: '0.75rem',
     fontWeight: 500,
@@ -349,7 +349,7 @@ export const Analytics: React.FC = () => {
   }
 
   const sectionTitle: React.CSSProperties = {
-    color: 'var(--manuscript-cream, #fbf3df)',
+    color: 'var(--text-on-glass)',
     fontFamily: 'Georgia, "Times New Roman", serif',
     textShadow: '0 1px 0 rgba(0,0,0,0.45)',
   }
@@ -370,7 +370,7 @@ export const Analytics: React.FC = () => {
   }
 
   const emptyText: React.CSSProperties = {
-    color: 'var(--manuscript-cream, #fbf3df)',
+    color: 'var(--text-on-glass)',
     opacity: 0.5,
   }
 
@@ -487,14 +487,14 @@ export const Analytics: React.FC = () => {
             <h1
               className="text-2xl sm:text-3xl font-bold tracking-wide leading-tight"
               style={{
-                color: 'var(--manuscript-cream, #fbf3df)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 textShadow: '0 1px 0 rgba(0,0,0,0.45)',
               }}
             >
               Analytics
             </h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.7 }}>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}>
               Reflect on your spiritual journey
             </p>
           </div>
@@ -522,7 +522,7 @@ export const Analytics: React.FC = () => {
                     }
                   : {
                       background: 'rgba(255,255,255,0.04)',
-                      color: 'var(--manuscript-cream, #fbf3df)',
+                      color: 'var(--text-on-glass)',
                       border: '1px solid var(--gold-mid, #d4a017)',
                     }
               }
@@ -574,7 +574,7 @@ export const Analytics: React.FC = () => {
                       <div key={p.name}>
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-xs font-semibold" style={labelStyle}>{p.name}</span>
-                          <span className="text-xs" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.7 }}>
+                          <span className="text-xs" style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}>
                             {p.prayed} prayed / {p.missed} missed
                           </span>
                         </div>
@@ -613,7 +613,7 @@ export const Analytics: React.FC = () => {
                       <div key={i}>
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-xs font-semibold" style={labelStyle}>{d.day}</span>
-                          <span className="text-xs" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.7 }}>
+                          <span className="text-xs" style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}>
                             {d.completed}/{d.total}
                           </span>
                         </div>
@@ -656,7 +656,7 @@ export const Analytics: React.FC = () => {
                       <div key={p.name}>
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-xs font-semibold" style={labelStyle}>{p.name}</span>
-                          <span className="text-xs" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.7 }}>
+                          <span className="text-xs" style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}>
                             {p.current}d / best {p.longest}d
                           </span>
                         </div>
@@ -695,7 +695,7 @@ export const Analytics: React.FC = () => {
                     return (
                       <div key={uc.challenge.id}>
                         <div className="flex justify-between items-center mb-2">
-                          <span className="font-semibold flex items-center gap-2" style={{ color: 'var(--manuscript-cream, #fbf3df)' }}>
+                          <span className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-on-glass)' }}>
                             <span className="text-lg">{uc.challenge.icon || '\uD83C\uDFAF'}</span>
                             <span style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
                               {uc.challenge.name_en}
@@ -820,7 +820,7 @@ export const Analytics: React.FC = () => {
                     {prayerSummary.per_prayer.map((p) => (
                       <div key={p.prayer_name} className="flex justify-between text-xs" style={labelStyle}>
                         <span style={{ textTransform: 'capitalize' }}>{p.prayer_name}</span>
-                        <span style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.8 }}>
+                        <span style={{ color: 'var(--text-on-glass)', opacity: 0.8 }}>
                           {p.prayed} prayed • {p.missed} missed
                         </span>
                       </div>
@@ -921,7 +921,7 @@ export const Analytics: React.FC = () => {
                   <p
                     className="text-sm leading-relaxed"
                     style={{
-                      color: 'var(--manuscript-cream, #fbf3df)',
+                      color: 'var(--text-on-glass)',
                       opacity: 0.82,
                       fontFamily: 'Georgia, "Times New Roman", serif',
                     }}

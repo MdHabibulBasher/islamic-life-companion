@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Mail, Lock, Sparkles, Trophy, BarChart3, Shield, BookOpen } from 'lucide-react'
+import { Mail, Lock, Clock, BookOpen, Compass } from 'lucide-react'
 import { Input } from '../../components/Form'
 import { LoadingSpinner } from '../../components/Loading'
 import { useToast } from '../../components/Toast'
@@ -117,18 +117,10 @@ export const Login = () => {
               <Star8 size={14} />
             </div>
 
-            {/* Brand mark above the form */}
-            <div
-              className="flex items-center justify-center gap-3 mb-3"
-              style={{ color: 'var(--gold-mid)' }}
-            >
-              <CrescentStar size={36} />
-            </div>
-
             <h1
               className="text-3xl sm:text-4xl font-bold tracking-tight mb-1"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -136,7 +128,7 @@ export const Login = () => {
             </h1>
             <p
               className="text-sm sm:text-base max-w-md mx-auto"
-              style={{ color: 'var(--manuscript-cream)', opacity: 0.82 }}
+              style={{ color: 'var(--text-on-glass)', opacity: 0.82 }}
             >
               Track your spiritual journey — habits, prayer times, qada, and Quran in one illuminated space.
             </p>
@@ -145,9 +137,6 @@ export const Login = () => {
 
         {/* ============================ FORM CARD ============================ */}
         <OrnateCard variant="warm" topBar corners="all" className="!p-6 sm:!p-8">
-          <div className="flex items-center justify-center mb-3 text-[var(--gold-mid)]">
-            <CrescentStar size={28} />
-          </div>
           <h2
             className="text-2xl font-bold mb-1 text-center"
             style={{
@@ -213,16 +202,16 @@ export const Login = () => {
         {/* ============================ FEATURE TRIO ============================ */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-6">
           <FeaturePill
-            icon={<Sparkles size={20} style={{ color: 'var(--gold-mid)' }} />}
-            label="Track Habits"
+            icon={<Clock size={20} style={{ color: 'var(--gold-mid)' }} />}
+            label="Prayer Times"
           />
           <FeaturePill
-            icon={<BarChart3 size={20} style={{ color: 'var(--gold-mid)' }} />}
-            label="See Stats"
+            icon={<Compass size={20} style={{ color: 'var(--gold-mid)' }} />}
+            label="Track Qada"
           />
           <FeaturePill
-            icon={<Trophy size={20} style={{ color: 'var(--gold-mid)' }} />}
-            label="Build Streaks"
+            icon={<BookOpen size={20} style={{ color: 'var(--gold-mid)' }} />}
+            label="Read Quran"
           />
         </div>
       </div>

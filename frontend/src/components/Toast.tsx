@@ -68,7 +68,7 @@ interface ToastContainerProps {
 
 export const ToastContainer = ({ toasts, onClose }: ToastContainerProps) => {
   return (
-    <div className="fixed bottom-4 right-4 space-y-2 z-50 max-w-md">
+    <div className="fixed bottom-4 right-4 left-4 sm:left-auto space-y-2 z-50 max-w-md sm:max-w-md">
       {toasts.map(toast => (
         <ToastItem key={toast.id} toast={toast} onClose={onClose} />
       ))}

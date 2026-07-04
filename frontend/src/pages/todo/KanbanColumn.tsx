@@ -67,7 +67,7 @@ export const KanbanColumn = ({
             <h3
               className="font-bold text-sm truncate"
               style={{
-                color: 'var(--manuscript-cream, #fbf3df)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 letterSpacing: '0.02em',
               }}

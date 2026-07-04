@@ -5,7 +5,6 @@ import { TopNav } from './components/TopNav'
 import { ToastContainer, useToast } from './components/Toast'
 import { IslamicOrnamentBG } from './components/IslamicOrnamentBG'
 import { Dashboard } from './pages/Dashboard'
-import { PrayerTimes } from './pages/PrayerTimes'
 import PrayerTrackerPage from './pages/PrayerTracker'
 import { Calendar } from './pages/Calendar'
 import { TodoPage } from './pages/TodoPage'
@@ -112,14 +111,6 @@ function AppShell() {
                 element={
                   <ProtectedRoute>
                     <TodoPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/prayer-times"
-                element={
-                  <ProtectedRoute>
-                    <PrayerTimes />
                   </ProtectedRoute>
                 }
               />

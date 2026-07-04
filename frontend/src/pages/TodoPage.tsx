@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, AlertCircle, ArrowRight } from 'lucide-react'
 import {
@@ -120,7 +120,7 @@ export const TodoPage = () => {
     <div className="max-w-[1500px] mx-auto px-4 py-8 md:pt-0">
       <PageHeader title="To-Do Board" />
 
-      {/* Flow indicator — a 4-step breadcrumb explaining the intended
+      {/* Flow indicator � a 4-step breadcrumb explaining the intended
           drag path. Stays compact so the 4 columns keep the lion's
           share of the viewport. */}
       <FlowIndicator />
@@ -165,7 +165,7 @@ export const TodoPage = () => {
               <h2
                 className="text-sm font-bold uppercase tracking-[0.14em]"
                 style={{
-                  color: 'var(--manuscript-cream, #fbf3df)',
+                  color: 'var(--text-on-glass)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
@@ -214,7 +214,7 @@ export const TodoPage = () => {
             <h2
               className="text-sm font-bold uppercase tracking-[0.14em] mb-3"
               style={{
-                color: 'var(--manuscript-cream, #fbf3df)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -231,7 +231,7 @@ export const TodoPage = () => {
                 style={{
                   background: 'rgba(0, 0, 0, 0.30)',
                   border: '1px solid var(--gold-mid, #d4a017)',
-                  color: 'var(--manuscript-cream, #fbf3df)',
+                  color: 'var(--text-on-glass)',
                 }}
               />
               <textarea
@@ -243,11 +243,11 @@ export const TodoPage = () => {
                 style={{
                   background: 'rgba(0, 0, 0, 0.30)',
                   border: '1px solid var(--gold-mid, #d4a017)',
-                  color: 'var(--manuscript-cream, #fbf3df)',
+                  color: 'var(--text-on-glass)',
                 }}
               />
               {/* Subtle hint that new tasks always land in Wall of Ideas
-                  — the user then drags them right. No dropdown needed. */}
+                  � the user then drags them right. No dropdown needed. */}
               <p
                 className="text-[10px] uppercase font-bold flex items-center gap-1.5"
                 style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
@@ -270,7 +270,7 @@ export const TodoPage = () => {
                     style={{
                       background: 'rgba(0, 0, 0, 0.30)',
                       border: '1px solid var(--gold-mid, #d4a017)',
-                      color: 'var(--manuscript-cream, #fbf3df)',
+                      color: 'var(--text-on-glass)',
                     }}
                   >
                     <option value="high">High</option>
@@ -293,7 +293,7 @@ export const TodoPage = () => {
                     style={{
                       background: 'rgba(0, 0, 0, 0.30)',
                       border: '1px solid var(--gold-mid, #d4a017)',
-                      color: 'var(--manuscript-cream, #fbf3df)',
+                      color: 'var(--text-on-glass)',
                     }}
                   />
                 </div>
@@ -311,17 +311,17 @@ export const TodoPage = () => {
                 }}
               >
                 <Plus size={16} />
-                {createMutation.isPending ? 'Adding…' : 'Add Task'}
+                {createMutation.isPending ? 'Adding�' : 'Add Task'}
               </button>
             </div>
           </div>
         </aside>
 
-        {/* ---- RIGHT — Kanban board (takes the rest of the width) --- */}
+        {/* ---- RIGHT � Kanban board (takes the rest of the width) --- */}
         <section className="min-w-0">
           {isLoading ? (
             <OrnateCard topBar corners="all" className="!p-8 text-center">
-              <p style={{ color: 'var(--gold-deep)' }}>Loading tasks…</p>
+              <p style={{ color: 'var(--gold-deep)' }}>Loading tasks�</p>
             </OrnateCard>
           ) : (
             <KanbanBoard
@@ -345,10 +345,10 @@ export const TodoPage = () => {
  * understands the workflow without having to read instructions.
  */
 const FLOW_STEPS: { id: string; label: string; icon: string }[] = [
-  { id: 'ideas', label: 'Wall of Ideas', icon: '💡' },
-  { id: 'todo', label: 'To do', icon: '📋' },
-  { id: 'doing', label: 'Doing', icon: '⚙️' },
-  { id: 'done', label: 'Done', icon: '✅' },
+  { id: 'ideas', label: 'Wall of Ideas', icon: '??' },
+  { id: 'todo', label: 'To do', icon: '??' },
+  { id: 'doing', label: 'Doing', icon: '??' },
+  { id: 'done', label: 'Done', icon: '?' },
 ]
 
 const FlowIndicator = () => (

@@ -269,7 +269,7 @@ const PageHeader: React.FC<{ active: number; completed: number; available: numbe
         <h1
           className="text-3xl sm:text-4xl font-bold leading-tight mb-2"
           style={{
-            color: 'var(--manuscript-cream)',
+            color: 'var(--text-on-glass)',
             fontFamily: 'Georgia, "Times New Roman", serif',
             textShadow: '0 2px 0 rgba(0,0,0,0.45)',
           }}
@@ -278,7 +278,7 @@ const PageHeader: React.FC<{ active: number; completed: number; available: numbe
         </h1>
         <p
           className="text-sm sm:text-base max-w-xl"
-          style={{ color: 'var(--manuscript-cream)', opacity: 0.78 }}
+          style={{ color: 'var(--text-on-glass)', opacity: 0.78 }}
         >
           Start with a simple step, grow step by step — complete a level to unlock the next.
         </p>
@@ -313,7 +313,7 @@ const StatPill: React.FC<{ label: string; value: number }> = ({ label, value }) 
     <p
       className="text-[10px] uppercase font-bold mt-1"
       style={{
-        color: 'var(--manuscript-cream)',
+        color: 'var(--text-on-glass)',
         opacity: 0.65,
         letterSpacing: '0.18em',
       }}
@@ -346,7 +346,7 @@ const CurrentChallengeHero: React.FC<{
             <h2
               className="text-xl font-bold"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -405,7 +405,7 @@ const CurrentChallengeHero: React.FC<{
         <h2
           className="text-2xl sm:text-3xl font-bold mb-2"
           style={{
-            color: 'var(--manuscript-cream)',
+            color: 'var(--text-on-glass)',
             fontFamily: 'Georgia, "Times New Roman", serif',
           }}
         >
@@ -415,7 +415,7 @@ const CurrentChallengeHero: React.FC<{
         {current.description && (
           <p
             className="text-sm sm:text-base max-w-3xl leading-relaxed mb-4"
-            style={{ color: 'var(--manuscript-cream)', opacity: 0.85 }}
+            style={{ color: 'var(--text-on-glass)', opacity: 0.85 }}
           >
             {current.description}
           </p>
@@ -453,7 +453,7 @@ const CurrentChallengeHero: React.FC<{
             <p
               className="text-sm leading-relaxed italic"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 opacity: 0.92,
               }}
@@ -513,7 +513,7 @@ const RewardsStrip: React.FC<{ rewards: Reward[] }> = ({ rewards }) => (
       </div>
       <p
         className="text-[10px] uppercase font-bold"
-        style={{ color: 'var(--manuscript-cream)', opacity: 0.55, letterSpacing: '0.18em' }}
+        style={{ color: 'var(--text-on-glass)', opacity: 0.55, letterSpacing: '0.18em' }}
       >
         {rewards.filter((r) => r.is_unlocked).length} / {rewards.length} unlocked
       </p>
@@ -569,7 +569,7 @@ const RewardsStrip: React.FC<{ rewards: Reward[] }> = ({ rewards }) => (
               {r.description && (
                 <p
                   className="text-[11px] mt-1 leading-snug"
-                  style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+                  style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
                 >
                   {r.description}
                 </p>
@@ -729,7 +729,7 @@ const ChallengeCard: React.FC<{
       {challenge.description && (
         <p
           className="text-xs leading-relaxed mb-4 flex-1"
-          style={{ color: 'var(--manuscript-cream)', opacity: 0.78 }}
+          style={{ color: 'var(--text-on-glass)', opacity: 0.78 }}
         >
           {challenge.description}
         </p>
@@ -777,7 +777,7 @@ const ChallengeCard: React.FC<{
         )}
         <span
           className="inline-flex items-center gap-1 text-[10px] uppercase font-bold"
-          style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+          style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
         >
           <Calendar size={11} />
           {challenge.duration_days} days
@@ -910,7 +910,7 @@ const EmptyState: React.FC<{ tab: Tab }> = ({ tab }) => {
       <p
         className="text-base"
         style={{
-          color: 'var(--manuscript-cream)',
+          color: 'var(--text-on-glass)',
           fontFamily: 'Georgia, serif',
           opacity: 0.85,
         }}

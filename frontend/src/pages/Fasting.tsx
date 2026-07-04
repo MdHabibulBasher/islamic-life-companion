@@ -23,17 +23,14 @@ import {
   CheckCircle2,
   Circle,
   CircleDollarSign,
-  Gift,
   Trash2,
   Save,
   Loader2,
   X,
   CalendarDays,
   Moon,
+  Sun,
   Filter,
-  Info,
-  Clock,
-  Plus,
   BookOpen,
 } from 'lucide-react'
 import { api } from '../services/api'
@@ -42,9 +39,9 @@ import {
   type FastingEntry,
   type FastingMonthSummary,
 } from '../services/fastingService'
+import { prayerTrackingService, type DayTrackingResponse } from '../services/prayerTrackingService'
 import { useToast } from '../components/Toast'
 import {
-  PageHeader,
   GoldDivider,
   OrnateCard,
 } from '../components/IslamicOrnamentBG'
@@ -185,6 +182,28 @@ function daysSinceAnchorHijri(y: number, m: number, d: number): number {
 const todayIso = (): string => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const format12Hour = (time24: string | null | undefined): string => {
+  if (!time24) return '—'
+  const [h, m] = time24.split(':').map(Number)
+  if (isNaN(h)) return time24
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+// Subtract minutes from a HH:MM time string, returning a new HH:MM string.
+// Used to compute Imsak (stop eating) = Fajr − 10 min.
+const subtractMinutes = (time24: string | null | undefined, minutes: number): string | null => {
+  if (!time24) return null
+  const [h, m] = time24.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return null
+  let total = h * 60 + m - minutes
+  if (total < 0) total += 24 * 60
+  const nh = Math.floor(total / 60) % 24
+  const nm = total % 60
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`
 }
 
 interface HijriToday {
@@ -400,14 +419,6 @@ const DayEditor: React.FC<DayEditorProps> = ({
     year: 'numeric',
   })
 
-  const dayType = isRamadan
-    ? 'Ramadan day'
-    : isMonThu
-      ? 'Sunnah fast (Mon/Thu)'
-      : isWhiteDay
-        ? 'White day (13/14/15)'
-        : 'Voluntary / other'
-
   // Pick a relevant knowledge-base topic for this day (if any).
   const dayKnowledge = useMemo(() => {
     if (isRamadan) {
@@ -424,7 +435,7 @@ const DayEditor: React.FC<DayEditorProps> = ({
 
   return (
     <div
-      className="absolute z-20 rounded-xl !p-4 w-[320px] sm:w-[360px]"
+      className="absolute z-20 rounded-xl !p-4 w-[300px] max-w-[calc(100vw-2rem)] sm:w-[360px] max-h-[80vh] overflow-y-auto"
       style={{
         top: '100%',
         left: '50%',
@@ -726,49 +737,6 @@ const DayEditor: React.FC<DayEditorProps> = ({
 }
 
 // ============================================================================
-// StatTile
-// ============================================================================
-const StatTile: React.FC<{
-  label: string
-  value: React.ReactNode
-  sub?: string
-}> = ({ label, value, sub }) => (
-  <div
-    className="rounded-xl !p-3"
-    style={{
-      background:
-        'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%)',
-      border: '1px solid var(--gold-mid, #d4a017)',
-      minWidth: 110,
-    }}
-  >
-    <p
-      className="text-[10px] uppercase font-bold"
-      style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
-    >
-      {label}
-    </p>
-    <p
-      className="text-xl font-bold mt-1 truncate"
-      style={{
-        color: 'var(--manuscript-cream, #fbf3df)',
-        fontFamily: 'Georgia, "Times New Roman", serif',
-      }}
-    >
-      {value}
-    </p>
-    {sub && (
-      <p
-        className="text-[10px] mt-0.5"
-        style={{ color: 'var(--gold-mid, #d4a017)' }}
-      >
-        {sub}
-      </p>
-    )}
-  </div>
-)
-
-// ============================================================================
 // Knowledge view + detail modal (mirrors Calendar.tsx ListView + EventDetailModal)
 // ============================================================================
 import {
@@ -1057,6 +1025,155 @@ const KnowledgeView: React.FC<{
 }
 
 // ============================================================================
+// DayEventsModal — shows all fasting occasions for a clicked day
+// ============================================================================
+const DayEventsModal: React.FC<{
+  day: number
+  month: number
+  occasions: KnowledgeTopic[]
+  onClose: () => void
+  onOccasionClick: (occ: KnowledgeTopic) => void
+}> = ({ day, month, occasions, onClose, onOccasionClick }) => {
+  return (
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4"
+      style={{ background: 'rgba(8, 24, 18, 0.72)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(8, 36, 28, 0.95) 0%, rgba(4, 22, 18, 0.95) 100%)',
+          border: '1px solid var(--gold-mid, #d4a017)',
+          boxShadow: '0 24px 48px -16px rgba(0, 0, 0, 0.6)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4 gap-4">
+          <div>
+            <h2
+              className="text-2xl font-bold"
+              style={{
+                color: 'var(--manuscript-cream, #fbf3df)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              {day} {HIJRI_MONTHS_EN[month - 1]}
+            </h2>
+            <p
+              className="text-xs uppercase font-bold mt-0.5"
+              style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+            >
+              {occasions.length} {occasions.length === 1 ? 'occasion' : 'occasions'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1.5 rounded-lg transition shrink-0"
+            style={{
+              background: 'transparent',
+              color: 'var(--gold-mid, #d4a017)',
+              border: '1px solid var(--gold-mid, #d4a017)',
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div
+          className="mb-4"
+          style={{ borderBottom: '1px solid var(--gold-deep, #9a6b0e)' }}
+        />
+
+        {/* Occasions list */}
+        {occasions.length === 0 ? (
+          <p
+            className="text-sm text-center py-8"
+            style={{ color: 'var(--gold-mid, #d4a017)' }}
+          >
+            No fasting occasions recorded for this day.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {occasions.map((occ) => {
+              const r = RULING_META[occ.ruling]
+              const cat = getCategoryMeta(occ.categoryId)
+              return (
+                <button
+                  key={occ.id}
+                  onClick={() => onOccasionClick(occ)}
+                  className="w-full text-left rounded-xl p-4 flex items-start gap-3 transition hover:translate-x-1"
+                  style={{
+                    background:
+                      'linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                    border: '1px solid var(--gold-mid, #d4a017)',
+                    borderLeftWidth: 4,
+                    borderLeftColor: r.color,
+                  }}
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0 mt-1.5"
+                    style={{ backgroundColor: r.color }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span
+                        className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: `${r.color}33`,
+                          color: 'var(--manuscript-cream, #fbf3df)',
+                          border: `1px solid ${r.color}`,
+                          letterSpacing: '0.18em',
+                        }}
+                      >
+                        {r.label}
+                      </span>
+                      {cat && (
+                        <span
+                          className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                          style={{
+                            background: `${cat.color}33`,
+                            color: 'var(--manuscript-cream, #fbf3df)',
+                            border: `1px solid ${cat.color}`,
+                            letterSpacing: '0.18em',
+                          }}
+                        >
+                          {cat.shortLabel}
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className="font-bold text-sm"
+                      style={{
+                        color: 'var(--manuscript-cream, #fbf3df)',
+                        fontFamily: 'Georgia, "Times New Roman", serif',
+                      }}
+                    >
+                      {occ.title}
+                    </p>
+                    {occ.why && (
+                      <p
+                        className="text-xs mt-1 leading-relaxed line-clamp-2"
+                        style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.75 }}
+                      >
+                        {occ.why}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
 // Knowledge detail modal — expandable Hadith / Quran / Madhhab sections
 // ============================================================================
 const KnowledgeDetailModal: React.FC<{
@@ -1079,14 +1196,14 @@ const KnowledgeDetailModal: React.FC<{
   return (
     <div
       className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4"
-      style={{ background: 'rgba(8, 24, 18, 0.65)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(8, 24, 18, 0.72)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div
-        className="rounded-2xl p-6 sm:p-8 max-w-3xl w-full"
+        className="rounded-2xl p-6 sm:p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto"
         style={{
           background:
-            'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%)',
+            'linear-gradient(180deg, rgba(8, 36, 28, 0.95) 0%, rgba(4, 22, 18, 0.95) 100%)',
           border: '1px solid var(--gold-mid, #d4a017)',
           borderTop: `4px solid ${cat.color}`,
           boxShadow: '0 24px 48px -16px rgba(0, 0, 0, 0.6)',
@@ -1105,7 +1222,7 @@ const KnowledgeDetailModal: React.FC<{
                 className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
                 style={{
                   background: `${r.color}33`,
-                  color: r.color,
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   border: `1px solid ${r.color}`,
                   letterSpacing: '0.18em',
                 }}
@@ -1116,7 +1233,7 @@ const KnowledgeDetailModal: React.FC<{
                 className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
                 style={{
                   background: `${cat.color}33`,
-                  color: cat.color,
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   border: `1px solid ${cat.color}`,
                   letterSpacing: '0.18em',
                 }}
@@ -1652,6 +1769,12 @@ export const Fasting: React.FC = () => {
   const [knowledgeCategory, setKnowledgeCategory] = useState<KnowledgeCategoryId | null>(null)
   const [selectedKnowledgeTopic, setSelectedKnowledgeTopic] = useState<KnowledgeTopic | null>(null)
 
+  // Day events modal — click a day to see all occasions for that day
+  const [selectedDay, setSelectedDay] = useState<{
+    day: number
+    occasions: KnowledgeTopic[]
+  } | null>(null)
+
   // "more" popover state — tracks which day's overflow popover is open
   const [morePopover, setMorePopover] = useState<{ gregDate: string; hijriDay: number } | null>(null)
   // Ref to the trigger button element (set on click) for fixed positioning
@@ -1692,6 +1815,12 @@ export const Fasting: React.FC = () => {
         hijriYear: r.data.hijri_year,
       }
     },
+  })
+
+  // ----- Today's prayer times (for fasting times display) -----
+  const prayerTimesQuery = useQuery<DayTrackingResponse>({
+    queryKey: ['prayer-times-today-fasting'],
+    queryFn: () => prayerTrackingService.getToday(),
   })
 
   // Default the active month to today's Hijri month on first load.
@@ -1780,6 +1909,12 @@ export const Fasting: React.FC = () => {
     return m
   }, [month, monthLength])
 
+  // "On This Day" occasions for the selected month/day
+  const onThisDayOccasions = useMemo(() => {
+    if (onThisDayMonth == null || onThisDayDay == null) return []
+    return getOccasionsForHijriDay(onThisDayMonth, onThisDayDay)
+  }, [onThisDayMonth, onThisDayDay])
+
   // ----- Handlers -----
   const goToPrevMonth = () => {
     if (month === 1) {
@@ -1803,24 +1938,6 @@ export const Fasting: React.FC = () => {
 
   if (entriesQuery.isError) showError('Failed to load fasting entries')
   if (summaryQuery.isError) showError('Failed to load month summary')
-
-  // ----- "On This Day" preview -----
-  const onThisDayEntry = useMemo(() => {
-    if (onThisDayMonth == null || onThisDayDay == null) return null
-    // Prefer the Hijri-keyed lookup; fall back to the approximate
-    // Gregorian date for legacy rows.
-    const hijriKey = `${year}|${onThisDayMonth}|${onThisDayDay}`
-    const byHijri = entryByHijri.get(hijriKey)
-    if (byHijri) return byHijri
-    const targetGreg = calibratedGregorianDate(
-      onThisDayDay,
-      todayQuery.data?.hijriDay,
-      todayQuery.data?.gregorianDate,
-      year,
-      onThisDayMonth
-    )
-    return entryByDate.get(targetGreg) ?? null
-  }, [entryByDate, entryByHijri, onThisDayMonth, onThisDayDay, year])
 
   // Inline day-editor data for the currently open popover. Prefer the
   // Hijri-keyed lookup so the popover reflects the entry the user
@@ -1848,9 +1965,6 @@ export const Fasting: React.FC = () => {
 
   const s = summaryQuery.data
 
-  // Quick label for the hero stat-tile (matches the Prayer Tracker style
-  // of "5 prayers today" — here we say "X fasts this month").
-  const monthFastedLabel = s ? `${s.fasted_days} / ${s.total_days}` : '—'
   const streakLabel = s
     ? `${s.fasted_days}-day streak`
     : '0-day streak'
@@ -1907,7 +2021,7 @@ export const Fasting: React.FC = () => {
             <h1
               className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--manuscript-cream, #fbf3df)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -1916,7 +2030,7 @@ export const Fasting: React.FC = () => {
             <p
               className="mt-1 text-sm max-w-md"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--manuscript-cream, #fbf3df)',
                 opacity: 0.82,
               }}
             >
@@ -1941,7 +2055,7 @@ export const Fasting: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border"
                 style={{
                   background: 'rgba(251,243,223,0.10)',
-                  color: 'var(--manuscript-cream)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   borderColor: 'var(--gold-mid)',
                   letterSpacing: '0.16em',
                 }}
@@ -1988,7 +2102,7 @@ export const Fasting: React.FC = () => {
                       }
                     : {
                         background: 'transparent',
-                        color: 'var(--manuscript-cream)',
+                        color: 'var(--manuscript-cream, #fbf3df)',
                         border: '1px solid transparent',
                         opacity: 0.85,
                         letterSpacing: '0.16em',
@@ -2013,6 +2127,270 @@ export const Fasting: React.FC = () => {
           </span>
         </div>
       </OrnateCard>
+
+      {/* ===== Fasting Times (Suhoor & Iftar) ===== */}
+      {viewMode === 'month' && prayerTimesQuery.data && (
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div
+            className="rounded-xl p-4 flex items-center gap-3"
+            style={{
+              background: 'rgba(6, 30, 25, 0.78)',
+              border: '1px solid var(--gold-mid)',
+              backdropFilter: 'blur(24px) saturate(1.5)',
+            }}
+          >
+            <div
+              className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-full"
+              style={{
+                background: 'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                color: 'var(--emerald-deep)',
+                border: '1px solid var(--gold-deep)',
+              }}
+            >
+              <Moon size={18} />
+            </div>
+            <div className="min-w-0">
+              <div
+                className="text-sm font-bold"
+                style={{
+                  color: 'var(--manuscript-cream, #fbf3df)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                Suhoor (Imsak)
+              </div>
+              <div
+                className="text-lg font-bold tabular-nums"
+                style={{ color: 'var(--gold-light, #f0c75e)' }}
+              >
+                {(() => {
+                  const fajrTime = prayerTimesQuery.data.prayers.find((p) => p.prayer_name === 'fajr')?.scheduled_time
+                  const imsakTime = subtractMinutes(fajrTime, 10)
+                  return format12Hour(imsakTime)
+                })()}
+              </div>
+              <div className="text-[10px]" style={{ color: 'var(--gold-mid)' }}>
+                Stop eating 10 min before Fajr ({format12Hour(prayerTimesQuery.data.prayers.find((p) => p.prayer_name === 'fajr')?.scheduled_time)})
+              </div>
+            </div>
+          </div>
+          <div
+            className="rounded-xl p-4 flex items-center gap-3"
+            style={{
+              background: 'rgba(6, 30, 25, 0.78)',
+              border: '1px solid var(--gold-mid)',
+              backdropFilter: 'blur(24px) saturate(1.5)',
+            }}
+          >
+            <div
+              className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-full"
+              style={{
+                background: 'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                color: 'var(--emerald-deep)',
+                border: '1px solid var(--gold-deep)',
+              }}
+            >
+              <Sun size={18} />
+            </div>
+            <div className="min-w-0">
+              <div
+                className="text-sm font-bold"
+                style={{
+                  color: 'var(--manuscript-cream, #fbf3df)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                Iftar (Maghrib)
+              </div>
+              <div
+                className="text-lg font-bold tabular-nums"
+                style={{ color: 'var(--gold-light, #f0c75e)' }}
+              >
+                {format12Hour(prayerTimesQuery.data.prayers.find((p) => p.prayer_name === 'maghrib')?.scheduled_time)}
+              </div>
+              <div className="text-[10px]" style={{ color: 'var(--gold-mid)' }}>
+                Break fast at sunset
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== "On This Day" quick-jump section ===== */}
+      {viewMode === 'month' && (
+        <OrnateCard
+          variant="dark"
+          topBar
+          corners="all"
+          className="!p-5 mb-6"
+        >
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            <span
+              className="w-8 h-8 inline-flex items-center justify-center rounded-full shrink-0"
+              style={{
+                background:
+                  'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                color: 'var(--emerald-deep, #064e3b)',
+                border: '1px solid var(--gold-deep, #9a6b0e)',
+              }}
+            >
+              <Sparkles size={16} />
+            </span>
+            <h2
+              className="text-lg font-bold uppercase"
+              style={{
+                color: 'var(--manuscript-cream, #fbf3df)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+                letterSpacing: '0.14em',
+              }}
+            >
+              On This Day
+            </h2>
+            <div className="ml-auto flex items-center gap-2 flex-wrap">
+              <select
+                value={onThisDayMonth ?? 1}
+                onChange={(e) => setOnThisDayMonth(Number(e.target.value))}
+                className="px-2 py-1 rounded-lg text-xs focus:outline-none"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.30)',
+                  border: '1px solid var(--gold-mid, #d4a017)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {HIJRI_MONTHS_EN.map((m, idx) => (
+                  <option key={idx} value={idx + 1}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={onThisDayDay ?? 1}
+                onChange={(e) => setOnThisDayDay(Number(e.target.value))}
+                className="px-2 py-1 rounded-lg text-xs focus:outline-none"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.30)',
+                  border: '1px solid var(--gold-mid, #d4a017)',
+                  color: 'var(--manuscript-cream, #fbf3df)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {Array.from({
+                  length: HIJRI_MONTH_LENGTHS[(onThisDayMonth ?? 1) - 1],
+                }).map((_, idx) => (
+                  <option key={idx} value={idx + 1}>
+                    {idx + 1}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  if (todayQuery.data) {
+                    setOnThisDayMonth(todayQuery.data.hijriMonthNumber)
+                    setOnThisDayDay(todayQuery.data.hijriDay)
+                  }
+                }}
+                className="px-2 py-1 rounded-lg text-[10px] uppercase font-bold"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.30)',
+                  color: 'var(--gold-mid, #d4a017)',
+                  border: '1px solid var(--gold-mid, #d4a017)',
+                  letterSpacing: '0.18em',
+                }}
+              >
+                Today
+              </button>
+            </div>
+          </div>
+
+          {onThisDayOccasions.length === 0 ? (
+            <p
+              className="text-sm uppercase font-bold text-center py-6"
+              style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+            >
+              No fasting occasions for{' '}
+              {onThisDayDay ?? '—'} {HIJRI_MONTHS_EN[(onThisDayMonth ?? 1) - 1]}.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {onThisDayOccasions.map((occ) => {
+                const r = RULING_META[occ.ruling]
+                const cat = getCategoryMeta(occ.categoryId)
+                return (
+                  <button
+                    key={occ.id}
+                    onClick={() => setSelectedKnowledgeTopic(occ)}
+                    className="w-full text-left rounded-xl p-4 flex items-start gap-3 transition hover:translate-x-1"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                      border: '1px solid var(--gold-mid, #d4a017)',
+                      borderLeftWidth: 4,
+                      borderLeftColor: r.color,
+                    }}
+                  >
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0 mt-1.5"
+                      style={{ backgroundColor: r.color }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span
+                          className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                          style={{
+                            background: `${r.color}33`,
+                            color: 'var(--manuscript-cream, #fbf3df)',
+                            border: `1px solid ${r.color}`,
+                            letterSpacing: '0.18em',
+                          }}
+                        >
+                          {r.label}
+                        </span>
+                        {cat && (
+                          <span
+                            className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                            style={{
+                              background: `${cat.color}33`,
+                              color: 'var(--manuscript-cream, #fbf3df)',
+                              border: `1px solid ${cat.color}`,
+                              letterSpacing: '0.18em',
+                            }}
+                          >
+                            {cat.shortLabel}
+                          </span>
+                        )}
+                        <span
+                          className="text-[10px] font-bold"
+                          style={{ color: 'var(--gold-mid, #d4a017)' }}
+                        >
+                          {onThisDayDay} {HIJRI_MONTHS_EN[(onThisDayMonth ?? 1) - 1]}
+                        </span>
+                      </div>
+                      <p
+                        className="font-bold text-sm"
+                        style={{
+                          color: 'var(--manuscript-cream, #fbf3df)',
+                          fontFamily: 'Georgia, "Times New Roman", serif',
+                        }}
+                      >
+                        {occ.title}
+                      </p>
+                      {occ.why && occ.why !== occ.title && (
+                        <p
+                          className="text-xs mt-1 leading-relaxed line-clamp-2"
+                          style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.75 }}
+                        >
+                          {occ.why}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </OrnateCard>
+      )}
 
       {/* ===== Month view ===== */}
       {viewMode === 'month' && (
@@ -2075,25 +2453,31 @@ export const Fasting: React.FC = () => {
             <GoldDivider />
           </div>
 
-          <div className="grid grid-cols-7 gap-2 mb-3">
-            {WEEKDAY_LABELS_EN.map((d) => (
-              <div
-                key={d}
-                className="text-center font-bold p-2 text-[10px] uppercase"
-                style={{
-                  color: 'var(--gold-mid, #d4a017)',
-                  letterSpacing: '0.18em',
-                }}
-              >
-                {d}
+          <div className="overflow-x-auto mb-3">
+            <div className="min-w-[420px] sm:min-w-0">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                {WEEKDAY_LABELS_EN.map((d) => (
+                  <div
+                    key={d}
+                    className="text-center font-bold p-1.5 sm:p-2 text-[9px] sm:text-[10px] uppercase"
+                    style={{
+                      color: 'var(--gold-mid, #d4a017)',
+                      letterSpacing: '0.18em',
+                    }}
+                  >
+                    {d}
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
-            {Array.from({ length: firstWeekday }).map((_, i) => (
-              <div key={`b${i}`} className="p-2" />
-            ))}
+          <div className="overflow-x-auto pb-2">
+            <div className="min-w-[420px] sm:min-w-0">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                {Array.from({ length: firstWeekday }).map((_, i) => (
+                  <div key={`b${i}`} className="p-1.5 sm:p-2" />
+                ))}
             {Array.from({ length: monthLength }).map((_, idx) => {
               const day = idx + 1
               const gregDate = calibratedGregorianDate(
@@ -2135,7 +2519,7 @@ export const Fasting: React.FC = () => {
                         setOpenEditor(isOpen ? null : { gregDate, hijriDay: day })
                       }
                     }}
-                    className="w-full rounded-xl p-2 min-h-[88px] flex flex-col gap-1 text-left transition hover:translate-y-[-1px] hover:shadow-md cursor-pointer"
+                    className="w-full rounded-xl p-1.5 sm:p-2 min-h-[72px] sm:min-h-[88px] flex flex-col gap-1 text-left transition hover:translate-y-[-1px] hover:shadow-md cursor-pointer"
                     style={
                       todayMatched
                         ? {
@@ -2168,9 +2552,31 @@ export const Fasting: React.FC = () => {
                         {day}
                       </span>
                       <div className="flex items-center gap-1">
+                        {dayOccasions.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedDay({ day, occasions: dayOccasions })
+                            }}
+                            className="inline-flex items-center justify-center w-5 h-5 rounded-full transition shrink-0"
+                            style={{
+                              background: todayMatched
+                                ? 'rgba(6, 78, 59, 0.4)'
+                                : 'rgba(212, 160, 23, 0.25)',
+                              color: todayMatched
+                                ? 'var(--emerald-deep, #064e3b)'
+                                : 'var(--gold-light, #f0c75e)',
+                              border: `1px solid ${todayMatched ? 'var(--emerald-deep, #064e3b)' : 'var(--gold-mid, #d4a017)'}`,
+                            }}
+                            title={`${dayOccasions.length} fasting occasion${dayOccasions.length > 1 ? 's' : ''} — click to view`}
+                          >
+                            <BookOpen size={10} />
+                          </button>
+                        )}
                         {todayMatched && (
                           <span
-                            className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-full"
+                            className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-full hidden sm:inline-block"
                             style={{
                               background: 'var(--emerald-deep, #064e3b)',
                               color: 'var(--gold-light, #f0c75e)',
@@ -2182,63 +2588,20 @@ export const Fasting: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    {/* Stacked occasion pills (Calendar-style: full title, color-coded) */}
-                    {visibleOccasions.length > 0 && (
-                      <div className="flex flex-col gap-1 mt-auto">
-                        {visibleOccasions.map((occ) => {
+                    {/* Compact colored dots for days with occasions */}
+                    {dayOccasions.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-auto">
+                        {dayOccasions.slice(0, 4).map((occ) => {
                           const r = RULING_META[occ.ruling]
                           return (
-                            <button
+                            <span
                               key={occ.id}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedKnowledgeTopic(occ)
-                              }}
-                              className="text-left text-[10px] px-2 py-1 rounded-md font-bold uppercase truncate transition hover:translate-x-0.5"
-                              style={{
-                                background: `${r.color}33`,
-                                color: todayMatched
-                                  ? 'var(--emerald-deep, #064e3b)'
-                                  : 'var(--manuscript-cream, #fbf3df)',
-                                border: `1px solid ${r.color}`,
-                                letterSpacing: '0.10em',
-                              }}
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ background: r.color }}
                               title={occ.title}
-                            >
-                              {occ.title}
-                            </button>
+                            />
                           )
                         })}
-                        {moreCount > 0 && (
-                          <button
-                            type="button"
-                            ref={(el) => {
-                              if (isMoreOpen) moreTriggerRef.current = el
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              moreTriggerRef.current = e.currentTarget
-                              setMorePopover(
-                                isMoreOpen
-                                  ? null
-                                  : { gregDate, hijriDay: day }
-                              )
-                            }}
-                            className="text-[10px] font-bold text-left cursor-pointer transition hover:translate-x-0.5"
-                            style={{
-                              color: todayMatched
-                                ? 'var(--emerald-deep, #064e3b)'
-                                : 'var(--gold-mid, #d4a017)',
-                              background: 'transparent',
-                              border: 'none',
-                              padding: 0,
-                            }}
-                            title={`${moreCount} more occasion${moreCount > 1 ? 's' : ''} — click to expand`}
-                          >
-                            +{moreCount} more
-                          </button>
-                        )}
                       </div>
                     )}
                     <DayPills
@@ -2264,6 +2627,8 @@ export const Fasting: React.FC = () => {
                 </div>
               )
             })}
+              </div>
+            </div>
           </div>
         </OrnateCard>
       )}
@@ -2335,6 +2700,20 @@ export const Fasting: React.FC = () => {
           />
         )
       })()}
+
+      {/* ===== Day events modal (click a day with occasions) ===== */}
+      {selectedDay && (
+        <DayEventsModal
+          day={selectedDay.day}
+          month={month}
+          occasions={selectedDay.occasions}
+          onClose={() => setSelectedDay(null)}
+          onOccasionClick={(occ) => {
+            setSelectedDay(null)
+            setSelectedKnowledgeTopic(occ)
+          }}
+        />
+      )}
     </div>
   )
 }

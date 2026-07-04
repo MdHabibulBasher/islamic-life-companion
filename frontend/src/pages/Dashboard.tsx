@@ -350,7 +350,7 @@ const ErrorCard: React.FC = () => (
     <p
       className="text-lg font-semibold"
       style={{
-        color: 'var(--manuscript-cream)',
+        color: 'var(--text-on-glass)',
         fontFamily: 'Georgia, serif',
       }}
     >
@@ -358,7 +358,7 @@ const ErrorCard: React.FC = () => (
     </p>
     <p
       className="text-sm mt-2"
-      style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+      style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
     >
       Please refresh and try again.
     </p>
@@ -429,7 +429,7 @@ const DashboardHero: React.FC<HeroProps> = ({
           <h1
             className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight mb-2"
             style={{
-              color: 'var(--manuscript-cream)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
               letterSpacing: '0.01em',
               textShadow: '0 2px 0 rgba(0,0,0,0.45)',
@@ -439,7 +439,7 @@ const DashboardHero: React.FC<HeroProps> = ({
           </h1>
           <p
             className="text-sm sm:text-base mb-5 max-w-xl"
-            style={{ color: 'var(--manuscript-cream)', opacity: 0.78 }}
+            style={{ color: 'var(--text-on-glass)', opacity: 0.78 }}
           >
             {completionPct >= 80
               ? "SubhanAllah — you're on fire. Your streaks are alive and the angels are taking note."
@@ -452,7 +452,7 @@ const DashboardHero: React.FC<HeroProps> = ({
             <Calendar size={16} style={{ color: 'var(--gold-mid)' }} />
             <p
               className="text-sm"
-              style={{ color: 'var(--manuscript-cream)', opacity: 0.85 }}
+              style={{ color: 'var(--text-on-glass)', opacity: 0.85 }}
             >
               {dateStr}
             </p>
@@ -565,7 +565,7 @@ const StreakLadder: React.FC<{ current: number; best: number }> = ({
             {current}
             <span
               className="text-base"
-              style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+              style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
             >
               {' '}
               days
@@ -573,7 +573,7 @@ const StreakLadder: React.FC<{ current: number; best: number }> = ({
           </p>
           <p
             className="text-[11px]"
-            style={{ color: 'var(--manuscript-cream)', opacity: 0.6 }}
+            style={{ color: 'var(--text-on-glass)', opacity: 0.6 }}
           >
             personal best: {best}d
           </p>
@@ -626,13 +626,13 @@ const StreakLadder: React.FC<{ current: number; best: number }> = ({
       <div className="flex justify-between mt-1">
         <span
           className="text-[10px]"
-          style={{ color: 'var(--manuscript-cream)', opacity: 0.55 }}
+          style={{ color: 'var(--text-on-glass)', opacity: 0.55 }}
         >
           0
         </span>
         <span
           className="text-[10px]"
-          style={{ color: 'var(--manuscript-cream)', opacity: 0.55 }}
+          style={{ color: 'var(--text-on-glass)', opacity: 0.55 }}
         >
           {max}
         </span>
@@ -664,7 +664,7 @@ const QuranJourney: React.FC<{ sessions: number }> = ({ sessions }) => {
           </p>
           <p
             className="text-[11px]"
-            style={{ color: 'var(--manuscript-cream)', opacity: 0.65 }}
+            style={{ color: 'var(--text-on-glass)', opacity: 0.65 }}
           >
             reading sessions logged
           </p>
@@ -701,7 +701,7 @@ const QuranJourney: React.FC<{ sessions: number }> = ({ sessions }) => {
         </div>
         <p
           className="text-[10px] mt-1.5"
-          style={{ color: 'var(--manuscript-cream)', opacity: 0.55 }}
+          style={{ color: 'var(--text-on-glass)', opacity: 0.55 }}
         >
           of 6,236 ayahs in the noble Quran
         </p>
@@ -762,7 +762,7 @@ const ChallengesMini: React.FC<{
             <p
               className="text-[9px] uppercase font-bold"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 opacity: 0.6,
                 letterSpacing: '0.18em',
               }}
@@ -852,7 +852,7 @@ const AyahOfTheDay: React.FC<{ ayah: typeof AYAH_POOL[number] }> = ({ ayah }) =>
           dir="rtl"
           className="text-2xl sm:text-3xl leading-loose mb-4"
           style={{
-            color: 'var(--manuscript-cream)',
+            color: 'var(--text-on-glass)',
             fontFamily:
               '"Amiri", "Scheherazade", "Traditional Arabic", Georgia, serif',
             textShadow: '0 1px 0 rgba(0,0,0,0.45)',
@@ -863,7 +863,7 @@ const AyahOfTheDay: React.FC<{ ayah: typeof AYAH_POOL[number] }> = ({ ayah }) =>
         <p
           className="text-base sm:text-lg italic mb-3 max-w-2xl"
           style={{
-            color: 'var(--manuscript-cream)',
+            color: 'var(--text-on-glass)',
             opacity: 0.92,
             fontFamily: 'Georgia, "Times New Roman", serif',
           }}
@@ -985,7 +985,7 @@ const Medallion: React.FC<{
     </p>
     <p
       className="text-[10px] mt-0.5"
-      style={{ color: 'var(--manuscript-cream)', opacity: 0.6 }}
+      style={{ color: 'var(--text-on-glass)', opacity: 0.6 }}
     >
       {desc}
     </p>
@@ -1029,7 +1029,7 @@ const QuickActions: React.FC = () => {
               background:
                 'linear-gradient(180deg, rgba(212, 160, 23, 0.10) 0%, rgba(212, 160, 23, 0.02) 100%)',
               border: '1px solid var(--gold-mid, #d4a017)',
-              color: 'var(--manuscript-cream)',
+              color: 'var(--text-on-glass)',
               textDecoration: 'none',
             }}
           >
@@ -1055,7 +1055,7 @@ const QuickActions: React.FC = () => {
             </p>
             <p
               className="text-[10px] mt-0.5"
-              style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+              style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
             >
               {a.desc}
             </p>
@@ -1183,7 +1183,7 @@ const HabitSuggestions: React.FC<{ totalHabits: number }> = ({ totalHabits }) =>
             </h2>
             <p
               className="text-sm mt-1"
-              style={{ color: 'var(--manuscript-cream)', opacity: 0.85 }}
+              style={{ color: 'var(--text-on-glass)', opacity: 0.85 }}
             >
               Your new habits are saved and live. Open the Habit Tracker to mark
               them complete and start building your streak.
@@ -1230,7 +1230,7 @@ const HabitSuggestions: React.FC<{ totalHabits: number }> = ({ totalHabits }) =>
               className="inline-flex items-center justify-center w-9 h-9 rounded-full transition-all"
               style={{
                 background: 'rgba(255,255,255,0.04)',
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 border: '1px solid var(--gold-mid)',
               }}
             >
@@ -1287,7 +1287,7 @@ const HabitSuggestions: React.FC<{ totalHabits: number }> = ({ totalHabits }) =>
                         <p
                           className="text-sm font-bold truncate"
                           style={{
-                            color: 'var(--manuscript-cream)',
+                            color: 'var(--text-on-glass)',
                             fontFamily: 'Georgia, serif',
                           }}
                         >
@@ -1307,7 +1307,7 @@ const HabitSuggestions: React.FC<{ totalHabits: number }> = ({ totalHabits }) =>
                       </div>
                       <p
                         className="text-[11px] leading-snug"
-                        style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+                        style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
                       >
                         {s.description}
                       </p>
@@ -1380,7 +1380,7 @@ const HabitSuggestions: React.FC<{ totalHabits: number }> = ({ totalHabits }) =>
             </h2>
             <p
               className="text-xs sm:text-sm mt-0.5"
-              style={{ color: 'var(--manuscript-cream)', opacity: 0.78 }}
+              style={{ color: 'var(--text-on-glass)', opacity: 0.78 }}
             >
               Pick a few habits to begin — you can edit, add, or remove these anytime.
             </p>
@@ -1411,7 +1411,7 @@ const HabitSuggestions: React.FC<{ totalHabits: number }> = ({ totalHabits }) =>
             className="inline-flex items-center justify-center w-9 h-9 rounded-full transition-all"
             style={{
               background: 'rgba(255,255,255,0.04)',
-              color: 'var(--manuscript-cream)',
+              color: 'var(--text-on-glass)',
               border: '1px solid var(--gold-mid)',
             }}
           >
@@ -1460,7 +1460,7 @@ const HabitSuggestions: React.FC<{ totalHabits: number }> = ({ totalHabits }) =>
                   <p
                     className="text-sm font-bold truncate"
                     style={{
-                      color: 'var(--manuscript-cream)',
+                      color: 'var(--text-on-glass)',
                       fontFamily: 'Georgia, serif',
                     }}
                   >
@@ -1480,7 +1480,7 @@ const HabitSuggestions: React.FC<{ totalHabits: number }> = ({ totalHabits }) =>
                 </div>
                 <p
                   className="text-[11px] leading-snug"
-                  style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+                  style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
                 >
                   {s.description}
                 </p>

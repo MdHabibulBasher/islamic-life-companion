@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
+  BookOpen,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -106,6 +107,9 @@ export const Calendar = () => {
   const [activeHijriYear, setActiveHijriYear] = useState<number | null>(null)
   const [activeHijriMonth, setActiveHijriMonth] = useState<number | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<IslamicEvent | null>(null)
+  const [selectedDay, setSelectedDay] = useState<
+    { day: number; events: IslamicEvent[] } | null
+  >(null)
   const [editingEvent, setEditingEvent] = useState<IslamicEvent | null>(null)
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<EventCategory | null>(
@@ -334,7 +338,7 @@ export const Calendar = () => {
             <h1
               className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -343,7 +347,7 @@ export const Calendar = () => {
             <p
               className="mt-1 text-sm max-w-md"
               style={{
-                color: 'var(--manuscript-cream)',
+                color: 'var(--text-on-glass)',
                 opacity: 0.82,
               }}
             >
@@ -400,7 +404,7 @@ export const Calendar = () => {
           <span
             className="text-sm"
             style={{
-              color: 'var(--manuscript-cream, #fbf3df)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
             }}
           >
@@ -457,7 +461,7 @@ export const Calendar = () => {
                       }
                     : {
                         background: 'transparent',
-                        color: 'var(--manuscript-cream)',
+                        color: 'var(--text-on-glass)',
                         border: '1px solid transparent',
                         opacity: 0.85,
                         letterSpacing: '0.16em',
@@ -505,7 +509,7 @@ export const Calendar = () => {
           <h2
             className="text-lg font-bold uppercase"
             style={{
-              color: 'var(--manuscript-cream, #fbf3df)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
               letterSpacing: '0.14em',
             }}
@@ -520,7 +524,7 @@ export const Calendar = () => {
               style={{
                 background: 'rgba(0, 0, 0, 0.30)',
                 border: '1px solid var(--gold-mid, #d4a017)',
-                color: 'var(--manuscript-cream, #fbf3df)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -537,7 +541,7 @@ export const Calendar = () => {
               style={{
                 background: 'rgba(0, 0, 0, 0.30)',
                 border: '1px solid var(--gold-mid, #d4a017)',
-                color: 'var(--manuscript-cream, #fbf3df)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -614,6 +618,7 @@ export const Calendar = () => {
             onPrev={goToPrevMonth}
             onNext={goToNextMonth}
             onEventClick={setSelectedEvent}
+            onDayClick={(day, events) => setSelectedDay({ day, events })}
           />
         </OrnateCard>
       )}
@@ -657,6 +662,20 @@ export const Calendar = () => {
             }}
           />
         </OrnateCard>
+      )}
+
+      {/* ===== Day events modal (click a day cell) ===== */}
+      {selectedDay && (
+        <DayEventsModal
+          day={selectedDay.day}
+          month={month}
+          events={selectedDay.events}
+          onClose={() => setSelectedDay(null)}
+          onEventClick={(ev) => {
+            setSelectedDay(null)
+            setSelectedEvent(ev)
+          }}
+        />
       )}
 
       {/* ===== Event detail modal ===== */}
@@ -752,7 +771,7 @@ const OnThisDayCard: React.FC<{
           <p
             className="font-bold text-base"
             style={{
-              color: 'var(--manuscript-cream, #fbf3df)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
             }}
           >
@@ -766,10 +785,10 @@ const OnThisDayCard: React.FC<{
               {event.title_bn}
             </p>
           )}
-          {event.description_en && (
+          {event.description_en && event.description_en !== event.title_en && (
             <p
               className="text-xs mt-2 leading-relaxed"
-              style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.85 }}
+              style={{ color: 'var(--text-on-glass)', opacity: 0.85 }}
             >
               {event.description_en.length > 240
                 ? event.description_en.slice(0, 240) + '…'
@@ -811,6 +830,7 @@ const MonthView: React.FC<{
   onPrev: () => void
   onNext: () => void
   onEventClick: (ev: IslamicEvent) => void
+  onDayClick?: (day: number, events: IslamicEvent[]) => void
   isAdmin?: boolean
   onEditEvent?: (ev: IslamicEvent) => void
 }> = ({
@@ -824,18 +844,21 @@ const MonthView: React.FC<{
   onPrev,
   onNext,
   onEventClick,
+  onDayClick,
 }) => {
   const cells: React.ReactNode[] = []
   for (let i = 0; i < firstWeekday; i++) {
-    cells.push(<div key={`empty-${i}`} className="p-2" />)
+    cells.push(<div key={`empty-${i}`} className="p-1.5 sm:p-2" />)
   }
   for (let day = 1; day <= monthLength; day++) {
     const isToday = isCurrentMonth && day === todayHijriDay
     const dayEvents = monthEvents.filter((e) => e.hijri_day === day)
     cells.push(
-      <div
+      <button
         key={day}
-        className="rounded-xl p-2 min-h-[88px] flex flex-col gap-1"
+        type="button"
+        onClick={() => onDayClick?.(day, dayEvents)}
+        className="rounded-xl p-1.5 sm:p-2 min-h-[72px] sm:min-h-[88px] flex flex-col gap-1 text-left transition hover:translate-y-[-1px] hover:shadow-md cursor-pointer"
         style={
           isToday
             ? {
@@ -866,7 +889,7 @@ const MonthView: React.FC<{
           </span>
           {isToday && (
             <span
-              className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-full"
+              className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-full hidden sm:inline-block"
               style={{
                 background: 'var(--emerald-deep, #064e3b)',
                 color: 'var(--gold-light, #f0c75e)',
@@ -876,40 +899,43 @@ const MonthView: React.FC<{
               Today
             </span>
           )}
-        </div>
-        <div className="flex flex-col gap-1 mt-auto">
-          {dayEvents.slice(0, 2).map((ev) => (
+          {dayEvents.length > 0 && onDayClick && (
             <button
-              key={ev.id}
-              onClick={() => onEventClick(ev)}
-              className="text-left text-[10px] px-2 py-1 rounded-md font-bold uppercase truncate transition hover:translate-x-0.5"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDayClick(day, dayEvents)
+              }}
+              className="inline-flex items-center justify-center w-5 h-5 rounded-full transition shrink-0"
               style={{
-                background: `${ev.color_code}33`,
+                background: isToday
+                  ? 'rgba(6, 78, 59, 0.4)'
+                  : 'rgba(212, 160, 23, 0.25)',
                 color: isToday
                   ? 'var(--emerald-deep, #064e3b)'
-                  : 'var(--manuscript-cream, #fbf3df)',
-                border: `1px solid ${ev.color_code}`,
-                letterSpacing: '0.10em',
+                  : 'var(--gold-light, #f0c75e)',
+                border: `1px solid ${isToday ? 'var(--emerald-deep, #064e3b)' : 'var(--gold-mid, #d4a017)'}`,
               }}
-              title={ev.title_en}
+              title={`${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''} — click to view`}
             >
-              {ev.title_en}
+              <BookOpen size={10} />
             </button>
-          ))}
-          {dayEvents.length > 2 && (
-            <span
-              className="text-[10px] font-bold"
-              style={{
-                color: isToday
-                  ? 'var(--emerald-deep, #064e3b)'
-                  : 'var(--gold-mid, #d4a017)',
-              }}
-            >
-              +{dayEvents.length - 2} more
-            </span>
           )}
         </div>
-      </div>,
+        {/* Compact colored dots for days with events */}
+        {dayEvents.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-auto">
+            {dayEvents.slice(0, 4).map((ev) => (
+              <span
+                key={ev.id}
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ background: ev.color_code }}
+                title={ev.title_en}
+              />
+            ))}
+          </div>
+        )}
+      </button>,
     )
   }
 
@@ -933,7 +959,7 @@ const MonthView: React.FC<{
           <h2
             className="text-2xl font-bold"
             style={{
-              color: 'var(--manuscript-cream, #fbf3df)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
             }}
           >
@@ -965,19 +991,29 @@ const MonthView: React.FC<{
         <GoldDivider />
       </div>
 
-      <div className="grid grid-cols-7 gap-2 mb-3">
-        {WEEKDAY_LABELS_EN.map((d) => (
-          <div
-            key={d}
-            className="text-center font-bold p-2 text-[10px] uppercase"
-            style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
-          >
-            {d}
+      <div className="overflow-x-auto mb-3">
+        <div className="min-w-[420px] sm:min-w-0">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            {WEEKDAY_LABELS_EN.map((d) => (
+              <div
+                key={d}
+                className="text-center font-bold p-1.5 sm:p-2 text-[9px] sm:text-[10px] uppercase tracking-[0.12em] sm:tracking-[0.18em]"
+                style={{ color: 'var(--gold-mid, #d4a017)' }}
+              >
+                {d}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2">{cells}</div>
+      <div className="overflow-x-auto pb-2">
+        <div className="min-w-[420px] sm:min-w-0">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            {cells}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -997,7 +1033,7 @@ const YearView: React.FC<{
         <h2
           className="text-2xl font-bold"
           style={{
-            color: 'var(--manuscript-cream, #fbf3df)',
+            color: 'var(--text-on-glass)',
             fontFamily: 'Georgia, "Times New Roman", serif',
           }}
         >
@@ -1042,7 +1078,7 @@ const YearView: React.FC<{
                 <span
                   className="font-bold text-sm"
                   style={{
-                    color: 'var(--manuscript-cream, #fbf3df)',
+                    color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
                   }}
                 >
@@ -1229,7 +1265,7 @@ const ListView: React.FC<{
             <h3
               className="text-sm font-bold uppercase mb-3 flex items-center gap-2"
               style={{
-                color: 'var(--manuscript-cream, #fbf3df)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 letterSpacing: '0.14em',
               }}
@@ -1266,7 +1302,7 @@ const ListView: React.FC<{
                       className="w-10 h-10 rounded-full inline-flex items-center justify-center shrink-0 font-bold"
                       style={{
                         background: 'rgba(0, 0, 0, 0.30)',
-                        color: 'var(--manuscript-cream, #fbf3df)',
+                        color: 'var(--text-on-glass)',
                         border: '1px solid var(--gold-mid, #d4a017)',
                         fontFamily: 'Georgia, "Times New Roman", serif',
                       }}
@@ -1281,7 +1317,7 @@ const ListView: React.FC<{
                         <p
                           className="font-bold"
                           style={{
-                            color: 'var(--manuscript-cream, #fbf3df)',
+                            color: 'var(--text-on-glass)',
                             fontFamily: 'Georgia, "Times New Roman", serif',
                           }}
                         >
@@ -1360,7 +1396,7 @@ const ListView: React.FC<{
           <span
             className="px-3 py-1.5 rounded-lg text-xs font-bold"
             style={{
-              color: 'var(--manuscript-cream, #fbf3df)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
               letterSpacing: '0.14em',
             }}
@@ -1394,6 +1430,141 @@ const ListView: React.FC<{
 }
 
 /* ============================================================================
+ * DayEventsModal — shows all events for a clicked day, click to view detail
+ * ========================================================================= */
+const DayEventsModal: React.FC<{
+  day: number
+  month: number
+  events: IslamicEvent[]
+  onClose: () => void
+  onEventClick: (ev: IslamicEvent) => void
+}> = ({ day, month, events, onClose, onEventClick }) => {
+  return (
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4"
+      style={{ background: 'rgba(8, 24, 18, 0.72)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(8, 36, 28, 0.95) 0%, rgba(4, 22, 18, 0.95) 100%)',
+          border: '1px solid var(--gold-mid, #d4a017)',
+          boxShadow: '0 24px 48px -16px rgba(0, 0, 0, 0.6)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4 gap-4">
+          <div>
+            <h2
+              className="text-2xl font-bold"
+              style={{
+                color: 'var(--manuscript-cream, #fbf3df)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              {day} {HIJRI_MONTHS_EN[month - 1]}
+            </h2>
+            <p
+              className="text-xs uppercase font-bold mt-0.5"
+              style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+            >
+              {events.length} {events.length === 1 ? 'event' : 'events'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1.5 rounded-lg transition shrink-0"
+            style={{
+              background: 'transparent',
+              color: 'var(--gold-mid, #d4a017)',
+              border: '1px solid var(--gold-mid, #d4a017)',
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div
+          className="mb-4"
+          style={{ borderBottom: '1px solid var(--gold-deep, #9a6b0e)' }}
+        />
+
+        {/* Events list */}
+        {events.length === 0 ? (
+          <p
+            className="text-sm text-center py-8"
+            style={{ color: 'var(--gold-mid, #d4a017)' }}
+          >
+            No events recorded for this day.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {events.map((ev) => {
+              const meta = CATEGORY_META[ev.category]
+              return (
+                <button
+                  key={ev.id}
+                  onClick={() => onEventClick(ev)}
+                  className="w-full text-left rounded-xl p-4 flex items-start gap-3 transition hover:translate-x-1"
+                  style={{
+                    background:
+                      'linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                    border: '1px solid var(--gold-mid, #d4a017)',
+                    borderLeftWidth: 4,
+                    borderLeftColor: ev.color_code,
+                  }}
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0 mt-1.5"
+                    style={{ backgroundColor: ev.color_code }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span
+                        className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: `${meta.color}33`,
+                          color: 'var(--manuscript-cream, #fbf3df)',
+                          border: `1px solid ${meta.color}`,
+                          letterSpacing: '0.18em',
+                        }}
+                      >
+                        {meta.label}
+                      </span>
+                    </div>
+                    <p
+                      className="font-bold text-sm"
+                      style={{
+                        color: 'var(--manuscript-cream, #fbf3df)',
+                        fontFamily: 'Georgia, "Times New Roman", serif',
+                      }}
+                    >
+                      {ev.title_en}
+                    </p>
+                    {ev.description_en && ev.description_en !== ev.title_en && (
+                      <p
+                        className="text-xs mt-1 leading-relaxed line-clamp-2"
+                        style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.75 }}
+                      >
+                        {ev.description_en}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ============================================================================
  * EventDetailModal — full story + sources, dark+gold theme
  * ========================================================================= */
 const EventDetailModal: React.FC<{
@@ -1404,14 +1575,14 @@ const EventDetailModal: React.FC<{
   return (
     <div
       className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4"
-      style={{ background: 'rgba(8, 24, 18, 0.65)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(8, 24, 18, 0.72)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div
-        className="rounded-2xl p-8 max-w-3xl w-full"
+        className="rounded-2xl p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto"
         style={{
           background:
-            'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%)',
+            'linear-gradient(180deg, rgba(8, 36, 28, 0.95) 0%, rgba(4, 22, 18, 0.95) 100%)',
           border: '1px solid var(--gold-mid, #d4a017)',
           borderTop: `4px solid ${event.color_code}`,
           boxShadow: '0 24px 48px -16px rgba(0, 0, 0, 0.6)',
@@ -1429,7 +1600,7 @@ const EventDetailModal: React.FC<{
                 className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
                 style={{
                   background: `${meta.color}33`,
-                  color: meta.color,
+                  color: 'var(--manuscript-cream, #fbf3df)',
                   border: `1px solid ${meta.color}`,
                   letterSpacing: '0.18em',
                 }}
@@ -1607,7 +1778,7 @@ const AdminEventModal: React.FC<{
   const inputStyle: React.CSSProperties = {
     background: 'rgba(0, 0, 0, 0.30)',
     border: '1px solid var(--gold-mid, #d4a017)',
-    color: 'var(--manuscript-cream, #fbf3df)',
+    color: 'var(--text-on-glass)',
   }
   const selectStyle: React.CSSProperties = {
     ...inputStyle,
@@ -1654,7 +1825,7 @@ const AdminEventModal: React.FC<{
           <h2
             className="text-lg font-bold uppercase"
             style={{
-              color: 'var(--manuscript-cream, #fbf3df)',
+              color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
               letterSpacing: '0.14em',
             }}

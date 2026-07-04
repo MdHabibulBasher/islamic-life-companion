@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { GlassCard } from './GlassCard'
 
 /**
  * IslamicOrnamentBG
@@ -296,6 +297,11 @@ export const GoldDivider: React.FC<{ className?: string; color?: string }> = ({
 //   • optional corner flourishes (one or all four corners)
 //   • optional top accent bar (gold leaf gradient)
 //   • optional header ornament (small lantern / star / divider)
+//
+// Now delegates to <GlassCard> so every OrnateCard across the app picks up
+// the frosted-glass surface automatically. The gold ornaments (corners +
+// top bar) are preserved via the `ornaments` prop. The `variant="dark"`
+// path uses GlassCard's forced-dark glass spec.
 // ---------------------------------------------------------------------------
 
 interface OrnateCardProps {
@@ -320,57 +326,22 @@ export const OrnateCard: React.FC<OrnateCardProps> = ({
   headerOrnament,
   className = '',
 }) => {
-  const variantClass =
-    variant === 'dark'
-      ? 'card-ornate-dark'
-      : variant === 'warm'
-        ? 'card-ornate-warm'
-        : 'card-ornate'
-
-  // Corner flips so the same flourish can render in any of 4 corners.
-  const renderCorner = (corner: 'tl' | 'tr' | 'bl' | 'br') => {
-    if (corners === 'none') return null
-    if (corners === 'top' && (corner === 'bl' || corner === 'br')) return null
-    if (corners === 'bottom' && (corner === 'tl' || corner === 'tr')) return null
-    const position =
-      corner === 'tl'
-        ? 'top-2 left-2'
-        : corner === 'tr'
-          ? 'top-2 right-2'
-          : corner === 'bl'
-            ? 'bottom-2 left-2'
-            : 'bottom-2 right-2'
-    const flip: 'h' | 'v' | 'both' | undefined =
-      corner === 'tr' ? 'h' : corner === 'bl' ? 'v' : corner === 'br' ? 'both' : undefined
-    return (
-      <span
-        className={`absolute ${position} text-[var(--gold-mid)] pointer-events-none`}
-      >
-        <CornerFlourish size={28} flip={flip} />
-      </span>
-    )
-  }
+  // `warm` is treated as `light` glass with ornaments on (it was a deeper
+  // cream — now a warm gold-bordered glass). `dark` forces the dark-glass
+  // spec regardless of the active mode.
+  const glassVariant = variant === 'dark' ? 'dark' : 'auto'
 
   return (
-    <div className={`relative ${variantClass} ${className}`}>
-      {topBar && (
-        <div className="absolute top-0 left-6 right-6 h-[2px] accent-bar-gold rounded-full" />
-      )}
-      {corners !== 'none' && (
-        <>
-          {renderCorner('tl')}
-          {renderCorner('tr')}
-          {renderCorner('bl')}
-          {renderCorner('br')}
-        </>
-      )}
-      {headerOrnament && (
-        <div className="flex items-center justify-center pt-5 text-[var(--gold-mid)]">
-          {headerOrnament}
-        </div>
-      )}
-      <div className="relative">{children}</div>
-    </div>
+    <GlassCard
+      ornaments
+      topBar={topBar}
+      corners={corners}
+      variant={glassVariant}
+      headerOrnament={headerOrnament}
+      className={className}
+    >
+      {children}
+    </GlassCard>
   )
 }
 
@@ -417,7 +388,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         <h1
           className="text-2xl sm:text-3xl font-bold tracking-wide leading-tight"
           style={{
-            color: 'var(--manuscript-cream)',
+            color: 'var(--text-on-glass)',
             fontFamily: 'Georgia, "Times New Roman", serif',
             textShadow: '0 1px 0 rgba(0,0,0,0.45)',
           }}
@@ -427,7 +398,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         {subtitle && (
           <p
             className="text-sm mt-0.5"
-            style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+            style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
           >
             {subtitle}
           </p>
@@ -470,7 +441,7 @@ export const ManuscriptSection: React.FC<ManuscriptSectionProps> = ({
       <h2
         className="text-lg sm:text-xl font-bold tracking-wide"
         style={{
-          color: 'var(--manuscript-cream)',
+          color: 'var(--text-on-glass)',
           fontFamily: 'Georgia, "Times New Roman", serif',
           textShadow: '0 1px 0 rgba(0,0,0,0.45)',
         }}
@@ -489,7 +460,7 @@ export const ManuscriptSection: React.FC<ManuscriptSectionProps> = ({
     {subtitle && (
       <p
         className="text-sm mb-4"
-        style={{ color: 'var(--manuscript-cream)', opacity: 0.7 }}
+        style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
       >
         {subtitle}
       </p>

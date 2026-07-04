@@ -77,7 +77,7 @@ export const QuranReader: React.FC = () => {
     border: '1px solid var(--gold-mid, #d4a017)',
     borderRadius: '1rem',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 8px 24px -16px rgba(0,0,0,0.5)',
-    color: 'var(--manuscript-cream, #fbf3df)',
+    color: 'var(--text-on-glass)',
   }
 
   const pillBase: React.CSSProperties = {
@@ -86,7 +86,7 @@ export const QuranReader: React.FC = () => {
     fontSize: '0.875rem',
     fontWeight: 500,
     background: 'rgba(255,255,255,0.04)',
-    color: 'var(--manuscript-cream, #fbf3df)',
+    color: 'var(--text-on-glass)',
     border: '1px solid var(--gold-mid, #d4a017)',
     transition: 'all 0.15s',
     cursor: 'pointer',
@@ -94,7 +94,7 @@ export const QuranReader: React.FC = () => {
 
   const navButtonBase: React.CSSProperties = {
     background: 'rgba(255,255,255,0.04)',
-    color: 'var(--manuscript-cream, #fbf3df)',
+    color: 'var(--text-on-glass)',
     border: '1px solid var(--gold-mid, #d4a017)',
     borderRadius: '0.75rem',
     padding: '0.5rem 1.25rem',
@@ -136,14 +136,14 @@ export const QuranReader: React.FC = () => {
             <h1
               className="text-2xl sm:text-3xl font-bold tracking-wide leading-tight"
               style={{
-                color: 'var(--manuscript-cream, #fbf3df)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 textShadow: '0 1px 0 rgba(0,0,0,0.45)',
               }}
             >
               Quran Reader
             </h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.7 }}>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}>
               Read, reflect, and bookmark your journey through the Book of Allah
             </p>
           </div>
@@ -172,7 +172,7 @@ export const QuranReader: React.FC = () => {
             onClick={() => setShowSurahList((v) => !v)}
             disabled={surahsQuery.isLoading}
             className="w-full p-4 text-left font-semibold flex justify-between items-center disabled:opacity-60"
-            style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+            style={{ color: 'var(--text-on-glass)' }}
           >
             {surahsQuery.isLoading ? (
               <span className="flex items-center gap-2">
@@ -186,7 +186,7 @@ export const QuranReader: React.FC = () => {
                   style={{ fontFamily: 'Georgia, "Times New Roman", serif', color: 'var(--gold-light, #f0c75e)' }}
                 >
                   {surah?.english_name ?? surahs[currentSurah - 1]?.englishName}
-                  <span style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.6 }} className="ml-2 text-sm">
+                  <span style={{ color: 'var(--text-on-glass)', opacity: 0.6 }} className="ml-2 text-sm">
                     ({currentSurah})
                   </span>
                 </span>
@@ -217,7 +217,7 @@ export const QuranReader: React.FC = () => {
                   className="w-full p-3 text-left transition-colors"
                   style={{
                     background: isActive ? 'rgba(212, 160, 23, 0.12)' : 'transparent',
-                    color: 'var(--manuscript-cream, #fbf3df)',
+                    color: 'var(--text-on-glass)',
                     borderBottom: '1px solid rgba(212, 160, 23, 0.15)',
                   }}
                 >
@@ -235,7 +235,7 @@ export const QuranReader: React.FC = () => {
                       {s.numberOfAyahs}
                     </span>
                   </div>
-                  <div className="text-xs px-3 mt-0.5" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.55 }}>
+                  <div className="text-xs px-3 mt-0.5" style={{ color: 'var(--text-on-glass)', opacity: 0.55 }}>
                     {s.revelationType} · {s.englishNameTranslation}
                   </div>
                 </button>
@@ -282,7 +282,7 @@ export const QuranReader: React.FC = () => {
                 {surah?.english_name}
               </h2>
               {surah?.revelation_type && (
-                <p className="text-xs mt-1" style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.55 }}>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-on-glass)', opacity: 0.55 }}>
                   {surah.revelation_type === 'Meccan' ? 'Meccan' : 'Medinan'} · {ayahs.length} Ayahs
                 </p>
               )}
@@ -353,7 +353,7 @@ export const QuranReader: React.FC = () => {
                       style={{
                         fontFamily: 'Amiri, "Scheherazade New", "Traditional Arabic", serif',
                         fontSize: `${fontSize}px`,
-                        color: 'var(--manuscript-cream, #fbf3df)',
+                        color: 'var(--text-on-glass)',
                         textShadow: '0 1px 2px rgba(0,0,0,0.3)',
                       }}
                     >
@@ -365,7 +365,7 @@ export const QuranReader: React.FC = () => {
                       <div
                         className="text-base italic"
                         style={{
-                          color: 'var(--manuscript-cream, #fbf3df)',
+                          color: 'var(--text-on-glass)',
                           opacity: 0.82,
                           fontFamily: 'Georgia, "Times New Roman", serif',
                         }}

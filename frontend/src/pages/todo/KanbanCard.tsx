@@ -144,7 +144,7 @@ const KanbanCardImpl = ({ task, isOverlay, onToggle, onDelete }: KanbanCardProps
             <h4
               className={`text-sm font-bold leading-snug ${done ? 'line-through' : ''}`}
               style={{
-                color: 'var(--manuscript-cream, #fbf3df)',
+                color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
