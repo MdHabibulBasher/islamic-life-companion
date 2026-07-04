@@ -50,7 +50,7 @@ const PRIORITY_STYLES: Record<
   low: {
     label: 'Low',
     bg: 'rgba(212, 160, 23, 0.14)',
-    fg: 'var(--gold-mid, #d4a017)',
+    fg: 'var(--gold-light, #f0c75e)',
     border: 'var(--gold-deep, #9a6b0e)',
   },
 };
@@ -108,7 +108,7 @@ const KanbanCardImpl = ({ task, isOverlay, onToggle, onDelete }: KanbanCardProps
           border, exactly mirroring the PrayerTracker's PrayerReferenceCard
           and Qada tiles. */}
       <div
-        className="rounded-xl p-3 flex flex-col gap-2"
+        className="rounded-xl p-2 sm:p-3 flex flex-col gap-1 sm:gap-2"
         style={{
           background: done
             ? 'linear-gradient(180deg, rgba(65, 126, 56, 0.10) 0%, rgba(65, 126, 56, 0.04) 100%)'
@@ -121,13 +121,13 @@ const KanbanCardImpl = ({ task, isOverlay, onToggle, onDelete }: KanbanCardProps
           transform: isOverlay ? 'rotate(2deg)' : undefined,
         }}
       >
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-1.5 sm:gap-2">
           {/* Drag handle — gold-leaf disc (matches the PrayerTracker icon discs) */}
           <button
             {...(isOverlay ? {} : attributes)}
             {...(isOverlay ? {} : listeners)}
             aria-label="Drag task"
-            className="mt-0.5 flex-shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing transition"
+            className="mt-0.5 flex-shrink-0 w-5 h-5 sm:w-7 sm:h-7 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing transition"
             style={{
               background:
                 'linear-gradient(135deg, var(--gold-mid, #d4a017) 0%, var(--gold-light, #f0c75e) 100%)',
@@ -142,9 +142,9 @@ const KanbanCardImpl = ({ task, isOverlay, onToggle, onDelete }: KanbanCardProps
           {/* Title + description */}
           <div className="flex-1 min-w-0">
             <h4
-              className={`text-sm font-bold leading-snug ${done ? 'line-through' : ''}`}
+              className={`text-[11px] sm:text-sm font-bold leading-snug ${done ? 'line-through' : ''}`}
               style={{
-                color: 'var(--text-on-glass)',
+                color: 'var(--manuscript-cream, #fbf3df)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
@@ -152,28 +152,27 @@ const KanbanCardImpl = ({ task, isOverlay, onToggle, onDelete }: KanbanCardProps
             </h4>
             {task.description && (
               <p
-                className="text-[11px] mt-1 leading-snug"
-                style={{ color: 'var(--gold-mid, #d4a017)' }}
+                className="text-[9px] sm:text-[11px] mt-0.5 sm:mt-1 leading-snug"
+                style={{ color: 'var(--gold-light, #f0c75e)' }}
               >
                 {task.description}
               </p>
             )}
           </div>
 
-          {/* Toggle done — gold-rimmed pill, exactly like the "DONE" pill in
-              the PrayerTracker screenshot. */}
+          {/* Toggle done - gold-rimmed pill. */}
           <button
             onClick={() => onToggle?.(task)}
             aria-label={done ? 'Mark active' : 'Mark done'}
             disabled={isOverlay}
-            className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition text-[10px] font-bold uppercase"
+            className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-full transition text-[9px] sm:text-[10px] font-bold uppercase"
             style={{
               background: done
                 ? 'linear-gradient(135deg, var(--gold-mid, #d4a017) 0%, var(--gold-light, #f0c75e) 100%)'
                 : 'transparent',
               color: done
                 ? 'var(--emerald-deep, #064e3b)'
-                : 'var(--gold-mid, #d4a017)',
+                : 'var(--gold-light, #f0c75e)',
               border: '1px solid var(--gold-mid, #d4a017)',
               letterSpacing: '0.18em',
             }}
@@ -184,9 +183,9 @@ const KanbanCardImpl = ({ task, isOverlay, onToggle, onDelete }: KanbanCardProps
         </div>
 
         {/* Footer row: priority pill + due date + delete */}
-        <div className="flex items-center gap-2 flex-wrap pt-1">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap pt-0.5 sm:pt-1">
           <span
-            className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+            className="text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded-full"
             style={{
               background: priority.bg,
               color: priority.fg,
@@ -199,14 +198,14 @@ const KanbanCardImpl = ({ task, isOverlay, onToggle, onDelete }: KanbanCardProps
 
           {task.due_date && (
             <span
-              className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+              className="text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded-full flex items-center gap-1"
               style={{
                 background: overdue
                   ? 'rgba(228, 66, 68, 0.18)'
                   : 'rgba(212, 160, 23, 0.14)',
                 color: overdue
                   ? 'var(--gold-light, #f0c75e)'
-                  : 'var(--gold-mid, #d4a017)',
+                  : 'var(--gold-light, #f0c75e)',
                 border: overdue
                   ? '1px solid var(--missed, #e44244)'
                   : '1px solid var(--gold-deep, #9a6b0e)',

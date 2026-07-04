@@ -202,8 +202,10 @@ const GlassCard: React.FC<{ children: React.ReactNode; className?: string }> = (
 
 // ============================================================================
 // PrayerReferenceCard — first row of the dashboard.
-// Shows each prayer's time window (start → end), a dua, and a masala.
-// Visually rhymes with the Qada card so the two sections feel like one.
+// Shows each prayer's time window (start → end). Visually rhymes with
+// the Qada tile so the two sections feel like one — circle indicator
+// on the left, prayer name + time, with a small "in congregation"
+// icon on the right (mirroring the Jamaa'ah button in the Prayer Row).
 // ============================================================================
 const PrayerReferenceCard: React.FC<{
   prayer: PrayerName
@@ -214,62 +216,57 @@ const PrayerReferenceCard: React.FC<{
   const ref = PRAYER_REFERENCE[prayer]
   return (
     <div
-      className="relative rounded-xl overflow-hidden flex flex-col"
+      className="group relative rounded-xl overflow-hidden transition-all duration-300"
       style={{
-        background: 'rgba(6, 30, 25, 0.78)',
+        background:
+          'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
         border: '1px solid var(--gold-mid)',
-        backdropFilter: 'blur(24px) saturate(1.5)',
-        WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
       }}
     >
-      <div className="p-3 flex-1 flex flex-col">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div
-              className="shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-full"
-              style={{
-                background:
-                  'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
-                color: 'var(--emerald-deep)',
-                border: '1px solid var(--gold-deep)',
-              }}
+      <div className="p-2 sm:p-3 flex items-center gap-2 sm:gap-3">
+        {/* Circle indicator on the left — echoes the Prayer Row's
+            checkbox and the Qada tile's outlined circle. */}
+        <div
+          className="shrink-0 w-7 h-7 sm:w-9 sm:h-9 inline-flex items-center justify-center rounded-full"
+          style={{
+            background: 'transparent',
+            border: '2px solid var(--gold-mid)',
+            color: 'var(--gold-mid)',
+            boxShadow: '0 0 0 1px rgba(0,0,0,0.25) inset',
+          }}
+          aria-hidden="true"
+        >
+          {icon}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div
+            className="text-xs sm:text-sm font-bold leading-tight"
+            style={{
+              color: 'var(--manuscript-cream, #fbf3df)',
+              fontFamily: 'Georgia, "Times New Roman", serif',
+            }}
+          >
+            {PRAYER_LABEL[prayer]}
+          </div>
+          <div className="mt-0.5 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+            <Clock size={9} className="shrink-0 sm:hidden" style={{ color: 'var(--gold-mid)' }} />
+            <Clock size={11} className="shrink-0 hidden sm:block" style={{ color: 'var(--gold-mid)' }} />
+            <span
+              className="text-[9px] sm:text-xs font-semibold tabular-nums"
+              style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
             >
-              {icon}
-            </div>
-            <div className="min-w-0">
-              <div
-                className="text-sm font-bold leading-tight"
-                style={{
-                  color: 'var(--manuscript-cream, #fbf3df)',
-                  fontFamily: 'Georgia, "Times New Roman", serif',
-                }}
-              >
-                {PRAYER_LABEL[prayer]}
-              </div>
-              <div className="text-[10px] truncate" style={{ color: 'var(--gold-mid)' }}>
-                {ref.hint}
-              </div>
-            </div>
+              {format12Hour(startTime)}
+            </span>
+            <span className="text-[8px] sm:text-[10px]" style={{ color: 'var(--gold-mid)' }}>→</span>
+            <span
+              className="text-[9px] sm:text-xs font-semibold tabular-nums"
+              style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
+            >
+              {format12Hour(endTime)}
+            </span>
           </div>
         </div>
-
-        <div className="mt-2 flex items-center gap-1.5">
-          <Clock size={11} className="shrink-0" style={{ color: 'var(--gold-mid)' }} />
-          <span
-            className="text-xs font-semibold tabular-nums"
-            style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
-          >
-            {format12Hour(startTime)}
-          </span>
-          <span className="text-[10px]" style={{ color: 'var(--gold-mid)' }}>→</span>
-          <span
-            className="text-xs font-semibold tabular-nums"
-            style={{ color: 'var(--manuscript-cream, #fbf3df)' }}
-          >
-            {format12Hour(endTime)}
-          </span>
-        </div>
-
       </div>
     </div>
   )
@@ -374,7 +371,7 @@ const PrayerRow: React.FC<{
             }
       }
     >
-      <div className="flex items-center gap-4 p-4 pl-6">
+      <div className="flex items-center gap-2 sm:gap-4 p-2.5 sm:p-4 sm:pl-6">
         <button
           onClick={onToggle}
           disabled={disabled}
@@ -382,17 +379,22 @@ const PrayerRow: React.FC<{
           aria-label={`Mark ${PRAYER_LABEL[status.prayer_name]} as ${done ? 'not completed' : 'completed'}`}
         >
           {done ? (
-            <CheckCircle2 size={40} style={{ color: 'var(--gold-mid)' }} strokeWidth={2} />
+            <CheckCircle2 size={28} className="sm:hidden" style={{ color: 'var(--gold-mid)' }} strokeWidth={2} />
           ) : (
-            <Circle size={40} style={{ color: 'var(--gold-mid, #d4a017)', opacity: 0.5 }} />
+            <Circle size={28} className="sm:hidden" style={{ color: 'var(--gold-mid, #d4a017)', opacity: 0.5 }} />
+          )}
+          {done ? (
+            <CheckCircle2 size={40} className="hidden sm:block" style={{ color: 'var(--gold-mid)' }} strokeWidth={2} />
+          ) : (
+            <Circle size={40} className="hidden sm:block" style={{ color: 'var(--gold-mid, #d4a017)', opacity: 0.5 }} />
           )}
         </button>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span style={{ color: 'var(--gold-mid)' }}>{meta.icon}</span>
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            <span className="hidden sm:inline" style={{ color: 'var(--gold-mid)' }}>{meta.icon}</span>
             <h3
-              className="text-lg font-bold"
+              className="text-sm sm:text-lg font-bold"
               style={{
                 color: 'var(--manuscript-cream, #fbf3df)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
@@ -402,7 +404,7 @@ const PrayerRow: React.FC<{
             </h3>
             {status.scheduled_time && (
               <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
+                className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
                 style={{
                   background: 'rgba(0,0,0,0.25)',
                   color: 'var(--gold-mid)',
@@ -413,9 +415,17 @@ const PrayerRow: React.FC<{
                 <Clock size={10} /> {format12Hour(status.scheduled_time)}
               </span>
             )}
+            {status.scheduled_time && (
+              <span
+                className="sm:hidden text-[10px] font-semibold tabular-nums"
+                style={{ color: 'var(--gold-mid)' }}
+              >
+                {format12Hour(status.scheduled_time)}
+              </span>
+            )}
             {done && (
               <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
+                className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold uppercase"
                 style={{
                   background:
                     'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
@@ -424,12 +434,14 @@ const PrayerRow: React.FC<{
                   letterSpacing: '0.16em',
                 }}
               >
-                <Check size={10} /> Done
+                <Check size={9} className="sm:hidden" />
+                <Check size={10} className="hidden sm:inline" />
+                <span className="hidden sm:inline">Done</span>
               </span>
             )}
             {status.is_jamaaah && done && (
               <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
+                className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
                 style={{
                   background: 'rgba(212,160,23,0.20)',
                   color: 'var(--manuscript-cream, #fbf3df)',
@@ -441,7 +453,7 @@ const PrayerRow: React.FC<{
               </span>
             )}
           </div>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--gold-mid)' }}>
+          <p className="hidden sm:block text-xs mt-0.5" style={{ color: 'var(--gold-mid)' }}>
             {PRAYER_SUBTITLE[status.prayer_name]}
           </p>
         </div>
@@ -450,7 +462,7 @@ const PrayerRow: React.FC<{
           <button
             onClick={onToggleJamaaah}
             disabled={disabled || !done}
-            className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:gap-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
             style={
               status.is_jamaaah
                 ? {
@@ -474,9 +486,10 @@ const PrayerRow: React.FC<{
                   }
             }
             title="Mark as prayed in congregation"
+            aria-label="Mark as prayed in congregation"
           >
             <Users size={12} />
-            Jamaa&rsquo;ah
+            <span className="hidden sm:inline">Jamaa&rsquo;ah</span>
           </button>
         )}
       </div>
@@ -560,9 +573,9 @@ const QadaTile: React.FC<{
         border: '1px solid var(--gold-mid)',
       }}
     >
-      <div className="p-4 text-center">
+      <div className="p-2 sm:p-4 text-center">
         <div
-          className="text-sm font-bold"
+          className="text-[10px] sm:text-sm font-bold"
           style={{
             color: 'var(--text-on-dark-glass)',
             fontFamily: 'Georgia, "Times New Roman", serif',
@@ -571,7 +584,7 @@ const QadaTile: React.FC<{
           {PRAYER_LABEL[prayer]}
         </div>
         <div
-          className="text-3xl font-bold mt-2 mb-1 tabular-nums leading-none"
+          className="text-xl sm:text-3xl font-bold mt-1 sm:mt-2 mb-0.5 sm:mb-1 tabular-nums leading-none"
           style={{
             color: 'var(--gold-glow)',
             fontFamily: 'Georgia, "Times New Roman", serif',
@@ -580,7 +593,7 @@ const QadaTile: React.FC<{
           {count}
         </div>
         <div
-          className="text-[10px] uppercase font-semibold mb-3"
+          className="text-[8px] sm:text-[10px] uppercase font-semibold mb-1.5 sm:mb-3"
           style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
         >
           owed
@@ -591,7 +604,7 @@ const QadaTile: React.FC<{
             type="button"
             onClick={handleUndo}
             disabled={disabled}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition disabled:opacity-50 border"
+            className="w-full inline-flex items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-2 rounded-full text-[9px] sm:text-xs font-bold transition disabled:opacity-50 border"
             style={{
               background: 'rgba(0,0,0,0.25)',
               color: 'var(--text-on-dark-glass)',
@@ -600,14 +613,15 @@ const QadaTile: React.FC<{
             }}
             title="Undo — put this prayer back as missed"
           >
-            <RotateCcw size={12} /> Undo
+            <RotateCcw size={9} className="sm:hidden" />
+            <RotateCcw size={12} className="hidden sm:block" /> <span className="sm:hidden">Undo</span><span className="hidden sm:inline">Undo</span>
           </button>
         ) : (
           <button
             type="button"
             onClick={handlePrimary}
             disabled={disabled}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full inline-flex items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-2 rounded-full text-[9px] sm:text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
               background:
                 'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
@@ -618,7 +632,8 @@ const QadaTile: React.FC<{
             }}
             title="Mark this missed prayer as made up"
           >
-            <Check size={12} /> Mark complete
+            <Check size={9} className="sm:hidden" />
+            <Check size={12} className="hidden sm:block" /> <span className="sm:hidden">Mark</span><span className="hidden sm:inline">Mark complete</span>
           </button>
         )}
       </div>
@@ -857,21 +872,6 @@ export const PrayerTracker = () => {
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // Defensive snap-back: if ``selectedDate`` somehow lands in the
-  // future (e.g. the user kept the page open across midnight, or
-  // browser clock skew, or a stale URL state), clamp it back to
-  // today. The date picker also caps at today (``max={getLocalDate()}``)
-  // so this only fires as a safety net.
-  useEffect(() => {
-    const today = getLocalDate()
-    if (selectedDate > today) {
-      setSelectedDate(today)
-    }
-    // We deliberately only run this when `selectedDate` changes,
-    // not on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate])
-
   // -- Queries -------------------------------------------------------------
   // Resolve the user's saved location once on mount. We pass city/country
   // to /prayer-tracking/today so Aladhan can return scheduled times even
@@ -923,10 +923,11 @@ export const PrayerTracker = () => {
     queryFn: () => prayerTrackingService.getSummary(statsRangeStart, statsRangeEnd),
     enabled: view === 'statistics',
   })
-  // qada queries were removed from the Stats view — the user opted
-  // to drop the qada calculation entirely from this surface. The
-  // daily Qada card and lifetime prayer_qada counters still work;
-  // only the Stats view's "qada made up" tile is gone.
+  const qadaEntriesQuery = useQuery({
+    queryKey: ['prayerQadaEntries', statsRangeStart, statsRangeEnd],
+    queryFn: () => prayerTrackingService.getQadaEntries(statsRangeStart, statsRangeEnd),
+    enabled: view === 'statistics',
+  })
   const settingsQuery = useQuery({
     queryKey: ['prayerSettings'],
     queryFn: () => prayerTrackingService.getSettings(),
@@ -964,6 +965,7 @@ export const PrayerTracker = () => {
       queryClient.invalidateQueries({ queryKey: ['prayerTrackerMonth'] })
       queryClient.invalidateQueries({ queryKey: ['prayerStreaks'] })
       queryClient.invalidateQueries({ queryKey: ['prayerSummary'] })
+      queryClient.invalidateQueries({ queryKey: ['prayerQadaEntries'] })
       queryClient.invalidateQueries({ queryKey: ['prayerStatistics'] })
       queryClient.invalidateQueries({ queryKey: ['prayerQada'] })
       // The backend syncs prayer-related challenges on every toggle —
@@ -1002,6 +1004,7 @@ export const PrayerTracker = () => {
       queryClient.invalidateQueries({ queryKey: ['prayerStatistics'] })
       queryClient.invalidateQueries({ queryKey: ['prayerQada'] })
       queryClient.invalidateQueries({ queryKey: ['prayerSummary'] })
+      queryClient.invalidateQueries({ queryKey: ['prayerQadaEntries'] })
       // Challenge progress may have changed (qada mark-complete also
       // flips a prayer_tracking row).
       queryClient.invalidateQueries({ queryKey: ['challenges'] })
@@ -1137,7 +1140,7 @@ export const PrayerTracker = () => {
             />
           </div>
 
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
             <div className="min-w-0">
               <div
                 className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-bold"
@@ -1226,7 +1229,7 @@ export const PrayerTracker = () => {
                 <button
                   key={t.id}
                   onClick={() => setView(t.id)}
-                  className="px-4 py-1.5 text-sm font-semibold rounded-lg transition"
+                  className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition"
                   style={
                     isActive
                       ? {
@@ -1283,7 +1286,7 @@ export const PrayerTracker = () => {
         {view !== 'statistics' && visibleDay && (
           <div className="grid grid-cols-2 gap-3">
             <div
-              className="rounded-xl p-3 flex items-center gap-3"
+              className="rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3"
               style={{
                 background: 'rgba(6, 30, 25, 0.78)',
                 border: '1px solid var(--gold-mid)',
@@ -1300,7 +1303,7 @@ export const PrayerTracker = () => {
               >
                 <Sunrise size={16} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div
                   className="text-sm font-bold"
                   style={{
@@ -1319,7 +1322,7 @@ export const PrayerTracker = () => {
               </div>
             </div>
             <div
-              className="rounded-xl p-3 flex items-center gap-3"
+              className="rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3"
               style={{
                 background: 'rgba(6, 30, 25, 0.78)',
                 border: '1px solid var(--gold-mid)',
@@ -1336,7 +1339,7 @@ export const PrayerTracker = () => {
               >
                 <Sunset size={16} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div
                   className="text-sm font-bold"
                   style={{
@@ -1360,34 +1363,69 @@ export const PrayerTracker = () => {
           </div>
         )}
 
-        {/* ============================ PRAYER REFERENCE ROW ============================ */}
-        {view !== 'statistics' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {PRAYER_ORDER.map((prayer, idx) => {
-              const status = visibleDay?.prayers.find((p) => p.prayer_name === prayer)
-              const startTime = status?.scheduled_time ?? null
-              const next = visibleDay?.prayers.find(
-                (p) => p.prayer_name === PRAYER_ORDER[idx + 1],
-              )
-              let endTime: string | null
-              if (prayer === PrayerName.FAJR) {
-                endTime = visibleDay?.sunrise ?? null
-              } else if (prayer === PrayerName.ISHA) {
-                endTime = visibleDay?.midnight ?? null
-              } else {
-                endTime = next?.scheduled_time ?? null
-              }
-              return (
-                <PrayerReferenceCard
-                  key={prayer}
-                  prayer={prayer}
-                  startTime={startTime}
-                  endTime={endTime}
-                  icon={tints[prayer].icon}
-                />
-              )
-            })}
-          </div>
+        {/* ============================ PRAYER TIMES ROW ============================ */}
+        {view === 'daily' && (
+          <OrnateCard variant="dark" topBar corners="all" className="!p-4 sm:!p-6">
+            <div className="flex items-start sm:items-center justify-between gap-2 mb-3 sm:mb-5">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div
+                  className="p-1.5 sm:p-2 rounded-xl"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                    color: 'var(--emerald-deep)',
+                    border: '1px solid var(--gold-deep)',
+                  }}
+                >
+                  <Clock size={16} className="sm:hidden" />
+                  <Clock size={20} className="hidden sm:block" />
+                </div>
+                <div>
+                  <h2
+                    className="text-base sm:text-lg font-bold leading-tight"
+                    style={{
+                      color: 'var(--text-on-dark-glass)',
+                      fontFamily: 'Georgia, "Times New Roman", serif',
+                    }}
+                  >
+                    Prayer Times
+                  </h2>
+                  <p className="text-[11px] sm:text-xs" style={{ color: 'var(--gold-light)' }}>
+                    {selectedDate === getLocalDate()
+                      ? "Today's schedule — Fajr through Isha, with each prayer's window."
+                      : `Schedule for ${formatDateLabel(selectedDate)}.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+              {PRAYER_ORDER.map((prayer, idx) => {
+                const status = visibleDay?.prayers.find((p) => p.prayer_name === prayer)
+                const startTime = status?.scheduled_time ?? null
+                const next = visibleDay?.prayers.find(
+                  (p) => p.prayer_name === PRAYER_ORDER[idx + 1],
+                )
+                let endTime: string | null
+                if (prayer === PrayerName.FAJR) {
+                  endTime = visibleDay?.sunrise ?? null
+                } else if (prayer === PrayerName.ISHA) {
+                  endTime = visibleDay?.midnight ?? null
+                } else {
+                  endTime = next?.scheduled_time ?? null
+                }
+                return (
+                  <PrayerReferenceCard
+                    key={prayer}
+                    prayer={prayer}
+                    startTime={startTime}
+                    endTime={endTime}
+                    icon={tints[prayer].icon}
+                  />
+                )
+              })}
+            </div>
+          </OrnateCard>
         )}
 
         {/* ============================ DAILY VIEW ============================ */}
@@ -1434,23 +1472,57 @@ export const PrayerTracker = () => {
                   </OrnateCard>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {visibleDay.prayers.map((s) => (
-                    <PrayerRow
-                      key={s.prayer_name}
-                      status={s}
-                      onToggle={() =>
-                        handleToggle(s.prayer_name, s.is_completed, s.is_jamaaah)
-                      }
-                      onToggleJamaaah={() =>
-                        handleToggleJamaaah(s.prayer_name, s.is_jamaaah, s.is_completed)
-                      }
-                      trackJamaaah={!!settings?.track_jamaaah}
-                      disabled={toggleMutation.isPending}
-                      tints={tints}
-                    />
-                  ))}
-                </div>
+                <OrnateCard variant="dark" topBar corners="all" className="!p-6">
+                  <div className="flex items-start sm:items-center justify-between gap-2 mb-4 sm:mb-5">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="p-2 rounded-xl"
+                        style={{
+                          background:
+                            'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
+                          color: 'var(--emerald-deep)',
+                          border: '1px solid var(--gold-deep)',
+                        }}
+                      >
+                        <CheckCircle2 size={20} />
+                      </div>
+                      <div>
+                        <h2
+                          className="text-lg font-bold leading-tight"
+                          style={{
+                            color: 'var(--text-on-dark-glass)',
+                            fontFamily: 'Georgia, "Times New Roman", serif',
+                          }}
+                        >
+                          Prayer Tracker
+                        </h2>
+                        <p className="text-xs" style={{ color: 'var(--gold-light)' }}>
+                          {selectedDate === getLocalDate()
+                            ? `Check off each prayer you prayed on time today.`
+                            : `Mark each prayer you prayed on time for ${formatDateLabel(selectedDate)}.`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {visibleDay.prayers.map((s) => (
+                      <PrayerRow
+                        key={s.prayer_name}
+                        status={s}
+                        onToggle={() =>
+                          handleToggle(s.prayer_name, s.is_completed, s.is_jamaaah)
+                        }
+                        onToggleJamaaah={() =>
+                          handleToggleJamaaah(s.prayer_name, s.is_jamaaah, s.is_completed)
+                        }
+                        trackJamaaah={!!settings?.track_jamaaah}
+                        disabled={toggleMutation.isPending}
+                        tints={tints}
+                      />
+                    ))}
+                  </div>
+                </OrnateCard>
               </>
             ) : (
               <GlassCard className="p-6">
@@ -1490,8 +1562,8 @@ export const PrayerTracker = () => {
 
         {/* ============================ WEEKLY VIEW ============================ */}
         {view === 'weekly' && (
-          <OrnateCard variant="dark" topBar corners="all" className="!p-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <OrnateCard variant="dark" topBar corners="all" className="!p-4 sm:!p-5">
+            <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               {week ? (
                 week.map((d) => (
                   <WeekDayCard
@@ -1573,7 +1645,15 @@ export const PrayerTracker = () => {
               ))}
             </div>
             {month ? (
-              <MonthGrid days={month} year={monthCursor.year} month={monthCursor.month} />
+              <MonthGrid
+                days={month}
+                year={monthCursor.year}
+                month={monthCursor.month}
+                onDayClick={(date) => {
+                  setSelectedDate(date)
+                  setView('daily')
+                }}
+              />
             ) : (
               <p className="text-sm" style={{ color: 'var(--gold-mid)' }}>
                 Loading…
@@ -1587,6 +1667,8 @@ export const PrayerTracker = () => {
           <StatsView
             summary={summaryQuery.data}
             summaryLoading={summaryQuery.isLoading}
+            qadaEntries={qadaEntriesQuery.data}
+            qadaEntriesLoading={qadaEntriesQuery.isLoading}
             rangeStart={statsRangeStart}
             rangeEnd={statsRangeEnd}
             onChangeStart={setStatsRangeStart}
@@ -1631,11 +1713,11 @@ const QadaCard: React.FC<{
 }> = ({ selectedDate, isToday, owedForDay, onCompleted, onUndo, disabled }) => {
   const totalOwed = PRAYER_ORDER.reduce((s, p) => s + owedForDay(p), 0)
   return (
-    <OrnateCard variant="dark" topBar corners="all" className="!p-6">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
+    <OrnateCard variant="dark" topBar corners="all" className="!p-4 sm:!p-6">
+      <div className="flex items-start sm:items-center justify-between gap-2 mb-3 sm:mb-5">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div
-            className="p-2 rounded-xl"
+            className="p-1.5 sm:p-2 rounded-xl"
             style={{
               background:
                 'linear-gradient(135deg, var(--gold-mid) 0%, var(--gold-light) 100%)',
@@ -1643,11 +1725,12 @@ const QadaCard: React.FC<{
               border: '1px solid var(--gold-deep)',
             }}
           >
-            <Info size={20} />
+            <Info size={16} className="sm:hidden" />
+            <Info size={20} className="hidden sm:block" />
           </div>
           <div>
             <h2
-              className="text-lg font-bold leading-tight"
+              className="text-base sm:text-lg font-bold leading-tight"
               style={{
                 color: 'var(--text-on-dark-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
@@ -1655,7 +1738,7 @@ const QadaCard: React.FC<{
             >
               Qada
             </h2>
-            <p className="text-xs" style={{ color: 'var(--gold-light)' }}>
+            <p className="text-[11px] sm:text-xs" style={{ color: 'var(--gold-light)' }}>
               {totalOwed === 0
                 ? isToday
                   ? 'All caught up for today.'
@@ -1666,9 +1749,9 @@ const QadaCard: React.FC<{
             </p>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-right shrink-0 ml-2">
           <div
-            className="text-3xl font-bold leading-none tabular-nums"
+            className="text-2xl sm:text-3xl font-bold leading-none tabular-nums"
             style={{
               color: 'var(--text-on-dark-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
@@ -1677,7 +1760,7 @@ const QadaCard: React.FC<{
             {totalOwed}
           </div>
           <div
-            className="text-[10px] uppercase font-semibold mt-1"
+            className="text-[9px] sm:text-[10px] uppercase font-semibold mt-1"
             style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
           >
             {isToday ? 'owed today' : 'owed this day'}
@@ -1685,7 +1768,7 @@ const QadaCard: React.FC<{
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
         {PRAYER_ORDER.filter((p) => owedForDay(p) > 0).map((p) => (
           <QadaTile
             key={p}
@@ -1749,7 +1832,7 @@ const DateField: React.FC<{
       }}
     >
       <span
-        className="pl-3 pr-1 text-sm font-semibold"
+        className="pl-2.5 sm:pl-3 pr-1 text-xs sm:text-sm font-semibold whitespace-nowrap"
         style={{
           color: 'var(--manuscript-cream, #fbf3df)',
           fontFamily: 'Georgia, "Times New Roman", serif',
@@ -1822,6 +1905,20 @@ const StatsView: React.FC<{
     per_prayer: Array<{ prayer_name: PrayerName; prayed: number; missed: number }>
   } | undefined
   summaryLoading: boolean
+  qadaEntries: {
+    entries: Array<{
+      id: number
+      prayer_name: PrayerName
+      made_up_date: string
+      missed_date: string | null
+      is_jamaaah: boolean
+      notes: string | null
+      created_at: string
+    }>
+    total: number
+    per_prayer: Record<string, number>
+  } | undefined
+  qadaEntriesLoading: boolean
   rangeStart: string
   rangeEnd: string
   onChangeStart: (s: string) => void
@@ -1829,6 +1926,8 @@ const StatsView: React.FC<{
 }> = ({
   summary,
   summaryLoading,
+  qadaEntries,
+  qadaEntriesLoading,
   rangeStart,
   rangeEnd,
   onChangeStart,
@@ -1870,19 +1969,19 @@ const StatsView: React.FC<{
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* ---- Range picker -------------------------------------------- */}
-      <OrnateCard variant="dark" topBar={false} corners="all" className="!p-4">
+      <OrnateCard variant="dark" topBar={false} corners="all" className="!p-3 sm:!p-4">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
             <div
-              className="text-[10px] font-bold uppercase"
+              className="text-[9px] sm:text-[10px] font-bold uppercase"
               style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
             >
               Your range
             </div>
             <div
-              className="text-lg font-bold mt-0.5"
+              className="text-base sm:text-lg font-bold mt-0.5"
               style={{
                 color: 'var(--manuscript-cream, #fbf3df)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
@@ -1894,7 +1993,7 @@ const StatsView: React.FC<{
           <div className="flex flex-wrap items-end gap-2">
             <label className="flex flex-col gap-1">
               <span
-                className="text-[10px] font-bold uppercase"
+                className="text-[9px] sm:text-[10px] font-bold uppercase"
                 style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
               >
                 From
@@ -1907,7 +2006,7 @@ const StatsView: React.FC<{
             </label>
             <label className="flex flex-col gap-1">
               <span
-                className="text-[10px] font-bold uppercase"
+                className="text-[9px] sm:text-[10px] font-bold uppercase"
                 style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
               >
                 To
@@ -1925,7 +2024,7 @@ const StatsView: React.FC<{
                 onChangeStart(today.slice(0, 7) + '-01')
                 onChangeEnd(today)
               }}
-              className="px-3 py-2 rounded-xl text-xs font-semibold transition border self-end"
+              className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-semibold transition border self-end"
               style={{
                 background: 'rgba(0,0,0,0.25)',
                 color: 'var(--manuscript-cream, #fbf3df)',
@@ -1945,7 +2044,7 @@ const StatsView: React.FC<{
                 onChangeStart(toIso(sevenDaysAgo))
                 onChangeEnd(toIso(today))
               }}
-              className="px-3 py-2 rounded-xl text-xs font-semibold transition border self-end"
+              className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-semibold transition border self-end"
               style={{
                 background: 'rgba(0,0,0,0.25)',
                 color: 'var(--manuscript-cream, #fbf3df)',
@@ -1958,8 +2057,8 @@ const StatsView: React.FC<{
         </div>
       </OrnateCard>
 
-      {/* ---- Hero strip: 2 big tiles --------------------------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* ---- Hero strip: 3 big tiles --------------------------------- */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <StatTile
           title="Prayed"
           value={summary ? `${summary.prayed}` : '—'}
@@ -1990,14 +2089,30 @@ const StatsView: React.FC<{
           tone="cream"
           icon={<TrendingUp />}
         />
+        <StatTile
+          title="Qada Made Up"
+          value={qadaEntries ? `${qadaEntries.total}` : '—'}
+          subtitle={
+            qadaEntries
+              ? qadaEntries.total === 0
+                ? 'No makeups yet'
+                : `${qadaEntries.total} qada made up in range`
+              : qadaEntriesLoading
+              ? 'Loading…'
+              : 'No data'
+          }
+          tone="sage"
+          icon={<Info />}
+        />
       </div>
 
       {/* ---- Per-prayer breakdown ------------------------------------ */}
-      <OrnateCard variant="dark" topBar={false} corners="all" className="!p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 size={18} style={{ color: 'var(--gold-mid)' }} />
+      <OrnateCard variant="dark" topBar={false} corners="all" className="!p-4 sm:!p-6">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <BarChart3 size={16} className="sm:hidden" style={{ color: 'var(--gold-mid)' }} />
+          <BarChart3 size={18} className="hidden sm:block" style={{ color: 'var(--gold-mid)' }} />
           <h3
-            className="text-base font-bold"
+            className="text-sm sm:text-base font-bold"
             style={{
               color: 'var(--manuscript-cream, #fbf3df)',
               fontFamily: 'Georgia, "Times New Roman", serif',
@@ -2006,13 +2121,13 @@ const StatsView: React.FC<{
             Per-prayer breakdown
           </h3>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {perPrayer.map((p) => {
             const total = p.prayed + p.missed
             const pct = total > 0 ? Math.round((p.prayed / total) * 100) : 0
             return (
               <div key={p.prayer_name} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-[11px] sm:text-xs">
                   <span
                     className="font-bold"
                     style={{
@@ -2027,7 +2142,7 @@ const StatsView: React.FC<{
                   </span>
                 </div>
                 <div
-                  className="h-2 rounded-full overflow-hidden"
+                  className="h-1.5 sm:h-2 rounded-full overflow-hidden"
                   style={{ background: 'rgba(240,199,94,0.18)' }}
                 >
                   <div
@@ -2047,9 +2162,9 @@ const StatsView: React.FC<{
       </OrnateCard>
 
       {/* ---- Encouragement card -------------------------------------- */}
-      <OrnateCard variant="dark" topBar={false} corners="all" className="!p-5">
+      <OrnateCard variant="dark" topBar={false} corners="all" className="!p-4 sm:!p-5">
         <p
-          className="text-sm"
+          className="text-xs sm:text-sm"
           style={{
             color: 'var(--manuscript-cream, #fbf3df)',
             fontFamily: 'Georgia, "Times New Roman", serif',
@@ -2089,7 +2204,7 @@ const StatTile: React.FC<{
   const isGold = tone === 'gold'
   return (
     <div
-      className="rounded-2xl p-4"
+      className="rounded-2xl p-3 sm:p-4"
       style={{
         ...tones[tone],
         boxShadow: '0 2px 20px -14px rgba(0,0,0,0.4)',
@@ -2097,7 +2212,7 @@ const StatTile: React.FC<{
     >
       <div className="flex items-center justify-between">
         <span
-          className="text-[10px] font-bold uppercase"
+          className="text-[9px] sm:text-[10px] font-bold uppercase"
           style={{
             color: isGold ? 'var(--emerald-deep)' : 'var(--gold-mid)',
             letterSpacing: '0.18em',
@@ -2110,7 +2225,7 @@ const StatTile: React.FC<{
         </span>
       </div>
       <div
-        className="text-3xl font-bold mt-1 tabular-nums"
+        className="text-xl sm:text-3xl font-bold mt-1 tabular-nums"
         style={{
           color: isGold ? 'var(--emerald-deep)' : 'var(--manuscript-cream, #fbf3df)',
           fontFamily: 'Georgia, "Times New Roman", serif',
@@ -2119,7 +2234,7 @@ const StatTile: React.FC<{
         {value}
       </div>
       <div
-        className="text-xs mt-0.5"
+        className="text-[11px] sm:text-xs mt-0.5"
         style={{
           color: isGold ? 'var(--emerald-deep)' : 'var(--gold-mid)',
           opacity: isGold ? 0.85 : 1,
@@ -2139,7 +2254,7 @@ const WeekDayCard: React.FC<{ day: DayTrackingResponse; onClick: () => void }> =
   return (
     <button
       onClick={onClick}
-      className="group rounded-2xl p-4 border transition text-left hover:-translate-y-0.5"
+      className="group rounded-2xl p-3 sm:p-4 border transition text-left hover:-translate-y-0.5"
       style={{
         background: tone.bg,
         borderColor: tone.border,
@@ -2156,7 +2271,7 @@ const WeekDayCard: React.FC<{ day: DayTrackingResponse; onClick: () => void }> =
             {formatDateLabel(day.date)}
           </div>
           <div
-            className="text-3xl font-bold mt-1 tabular-nums"
+            className="text-2xl sm:text-3xl font-bold mt-1 tabular-nums"
             style={{
               fontFamily: 'Georgia, "Times New Roman", serif',
               color: tone.text,
@@ -2192,10 +2307,11 @@ const WeekDayCard: React.FC<{ day: DayTrackingResponse; onClick: () => void }> =
   )
 }
 
-const MonthGrid: React.FC<{ days: DayTrackingResponse[]; year: number; month: number }> = ({
+const MonthGrid: React.FC<{ days: DayTrackingResponse[]; year: number; month: number; onDayClick: (date: string) => void }> = ({
   days,
   year,
   month,
+  onDayClick,
 }) => {
   const firstWeekday = new Date(year, month - 1, 1).getDay()
   const blanks = Array.from({ length: firstWeekday }, (_, i) => i)
@@ -2208,24 +2324,27 @@ const MonthGrid: React.FC<{ days: DayTrackingResponse[]; year: number; month: nu
       {days.map((d) => {
         const dayNum = Number(d.date.split('-')[2])
         const tone = dayCompletionTone(d.completed_count)
+        const isFuture = d.date > getLocalDate()
         return (
           <button
             key={d.date}
-            className="aspect-square rounded-xl border flex flex-col items-center justify-center text-xs transition hover:-translate-y-0.5"
+            onClick={() => onDayClick(d.date)}
+            disabled={isFuture}
+            className="aspect-square rounded-xl border flex flex-col items-center justify-center text-xs transition hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             style={{
-              background: tone.bg,
-              borderColor: tone.border,
-              color: tone.text,
+              background: isFuture ? 'rgba(0,0,0,0.15)' : tone.bg,
+              borderColor: isFuture ? 'var(--gold-mid)' : tone.border,
+              color: isFuture ? 'var(--gold-mid)' : tone.text,
               boxShadow: '0 2px 16px -12px rgba(0,0,0,0.4)',
             }}
-            title={`${d.date}: ${d.completed_count}/5`}
+            title={isFuture ? `${d.date} — not yet available` : `${d.date}: ${d.completed_count}/5`}
           >
             <span className="text-[9px] sm:text-[10px] opacity-80">{dayNum}</span>
             <span
               className="text-xs sm:text-sm font-bold tabular-nums leading-none mt-0.5"
               style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
             >
-              {d.completed_count}/5
+              {isFuture ? '·' : `${d.completed_count}/5`}
             </span>
           </button>
         )

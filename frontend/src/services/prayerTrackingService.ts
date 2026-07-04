@@ -271,6 +271,26 @@ class PrayerTrackingService {
     return r.data
   }
 
+  /** GET /prayer-tracking/qada/entries?start=&end= */
+  async getQadaEntries(start?: string, end?: string) {
+    const r = await api.get('/prayer-tracking/qada/entries', {
+      params: { start, end },
+    })
+    return r.data as {
+      entries: Array<{
+        id: number
+        prayer_name: PrayerName
+        made_up_date: string
+        missed_date: string | null
+        is_jamaaah: boolean
+        notes: string | null
+        created_at: string
+      }>
+      total: number
+      per_prayer: Record<string, number>
+    }
+  }
+
   /** GET /prayer-tracking/settings */
   async getSettings(): Promise<PrayerSettings> {
     const r = await api.get<PrayerSettings>('/prayer-tracking/settings')

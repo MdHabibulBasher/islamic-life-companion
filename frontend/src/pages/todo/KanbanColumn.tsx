@@ -50,11 +50,11 @@ export const KanbanColumn = ({
       }}
     >
       {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-2">
+      <div className="px-3 sm:px-4 pt-2.5 sm:pt-4 pb-1.5 sm:pb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span
             aria-hidden="true"
-            className="shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-full text-base"
+            className="shrink-0 w-5 h-5 sm:w-7 sm:h-7 inline-flex items-center justify-center rounded-full text-xs sm:text-base"
             style={{
               background:
                 'linear-gradient(135deg, var(--gold-mid, #d4a017) 0%, var(--gold-light, #f0c75e) 100%)',
@@ -65,9 +65,9 @@ export const KanbanColumn = ({
           </span>
           <div className="min-w-0">
             <h3
-              className="font-bold text-sm truncate"
+              className="font-bold text-xs sm:text-sm truncate"
               style={{
-                color: 'var(--text-on-glass)',
+                color: 'var(--manuscript-cream, #fbf3df)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 letterSpacing: '0.02em',
               }}
@@ -75,8 +75,8 @@ export const KanbanColumn = ({
               {column.title}
             </h3>
             <p
-              className="text-[10px] uppercase font-bold"
-              style={{ color: 'var(--gold-mid, #d4a017)', letterSpacing: '0.18em' }}
+              className="text-[8px] sm:text-[10px] uppercase font-bold"
+              style={{ color: 'var(--gold-light, #f0c75e)', letterSpacing: '0.18em' }}
             >
               {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
             </p>
@@ -86,13 +86,13 @@ export const KanbanColumn = ({
 
       {/* Header rule — gold gradient on the deep ground */}
       <div
-        className="mx-4 mb-3 h-px"
+        className="mx-3 sm:mx-4 mb-2 sm:mb-3 h-px"
         style={{ background: column.headerRule }}
         aria-hidden="true"
       />
 
       {/* Cards */}
-      <div className="px-3 pb-3 flex flex-col gap-2 flex-1 min-h-[80px]">
+      <div className="px-2 sm:px-3 pb-2 sm:pb-3 flex flex-col gap-1.5 sm:gap-2 flex-1 min-h-[60px]">
         <SortableContext
           items={tasks.map((t) => t.id)}
           strategy={verticalListSortingStrategy}
@@ -109,10 +109,10 @@ export const KanbanColumn = ({
 
         {tasks.length === 0 && (
           <div
-            className="rounded-xl py-6 text-center text-[11px] uppercase font-bold"
+            className="rounded-xl py-4 sm:py-6 text-center text-[10px] sm:text-[11px] uppercase font-bold"
             style={{
               border: '1px dashed var(--gold-deep, #9a6b0e)',
-              color: 'var(--gold-mid, #d4a017)',
+              color: 'var(--gold-light, #f0c75e)',
               background: 'rgba(0, 0, 0, 0.18)',
               letterSpacing: '0.18em',
             }}

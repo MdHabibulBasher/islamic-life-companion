@@ -168,11 +168,12 @@ export const PrayerTimes = () => {
       />
 
       {/* ----- Location card ----- */}
-      <OrnateCard variant="dark" topBar corners="all" className="!p-6 mb-6">
+      <OrnateCard variant="dark" topBar corners="all" className="!p-4 sm:!p-6 mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2">
-              <MapPin size={18} style={{ color: 'var(--gold-mid)' }} className="flex-shrink-0" />
+                <MapPin size={16} className="flex-shrink-0 sm:hidden" style={{ color: 'var(--gold-mid)' }} />
+                <MapPin size={18} className="flex-shrink-0 hidden sm:block" style={{ color: 'var(--gold-mid)' }} />
               <span
                 className="font-bold truncate"
                 title={locationLabel}
@@ -211,14 +212,14 @@ export const PrayerTimes = () => {
 
       {/* ----- Empty state when no location is set yet ----- */}
       {!userLoc && !isLoading && (
-        <OrnateCard variant="dark" topBar corners="all" className="!p-8 mb-8 text-center">
+        <OrnateCard variant="dark" topBar corners="all" className="!p-4 sm:!p-6 mb-6 sm:mb-8 text-center">
           <Compass
             className="mx-auto mb-3"
-            size={48}
+            size={40}
             style={{ color: 'var(--gold-mid)' }}
           />
           <p
-            className="text-lg font-bold mb-1"
+            className="text-base sm:text-lg font-bold mb-1"
             style={{
               color: 'var(--text-on-glass)',
               fontFamily: 'Georgia, "Times New Roman", serif',
@@ -227,7 +228,7 @@ export const PrayerTimes = () => {
             No location set
           </p>
           <p
-            className="text-sm mb-4"
+            className="text-xs sm:text-sm mb-4"
             style={{ color: 'var(--gold-mid)' }}
           >
             Use the location button in the top navigation bar to pick a city or
@@ -242,11 +243,11 @@ export const PrayerTimes = () => {
           title="Today's Schedule"
           subtitle="Five daily prayers"
         >
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mt-3 sm:mt-4">
             {prayers.map((prayer) => (
               <div
                 key={prayer.name}
-                className="rounded-2xl p-4 flex flex-col"
+                className="rounded-2xl p-3 sm:p-4 flex flex-col"
                 style={{
                   background:
                     'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
@@ -254,16 +255,16 @@ export const PrayerTimes = () => {
                   boxShadow: '0 4px 24px -12px rgba(0,0,0,0.4)',
                 }}
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
                   <div
-                    className="p-2 rounded-lg inline-flex items-center justify-center"
+                    className="p-1.5 sm:p-2 rounded-lg inline-flex items-center justify-center"
                     style={{ background: prayer.accent, color: 'var(--emerald-deep)' }}
                   >
                     {prayer.icon}
                   </div>
                 </div>
                 <h3
-                  className="text-base font-bold mb-1"
+                  className="text-sm sm:text-base font-bold mb-0.5 sm:mb-1"
                   style={{
                     color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
@@ -272,7 +273,7 @@ export const PrayerTimes = () => {
                   {prayer.name}
                 </h3>
                 <p
-                  className="text-2xl font-bold tabular-nums"
+                  className="text-lg sm:text-2xl font-bold tabular-nums"
                   style={{
                     color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
@@ -288,31 +289,32 @@ export const PrayerTimes = () => {
 
       {/* ----- Sunrise / Sunset + Fasting Times ----- */}
       {prayerData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 mb-8">
-          <OrnateCard variant="dark" topBar={false} corners="all" className="!p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4 mb-6 sm:mb-8">
+          <OrnateCard variant="dark" topBar={false} corners="all" className="!p-4 sm:!p-6">
             <h3
-              className="text-lg font-bold mb-4 flex items-center gap-2"
+              className="text-base sm:text-lg font-bold mb-3 sm:mb-4 flex items-center gap-2"
               style={{
                 color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
-              <Sun size={20} style={{ color: 'var(--gold-mid)' }} />
+              <Sun size={18} className="sm:hidden" style={{ color: 'var(--gold-mid)' }} />
+              <Sun size={20} className="hidden sm:block" style={{ color: 'var(--gold-mid)' }} />
               Sunrise &amp; Sunset
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div
-                className="flex justify-between items-center pb-4"
+                className="flex justify-between items-center pb-3 sm:pb-4"
                 style={{ borderBottom: '1px solid var(--gold-mid)' }}
               >
                 <span
-                  className="text-[10px] uppercase font-semibold"
+                  className="text-[9px] sm:text-[10px] uppercase font-semibold"
                   style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
                 >
                   Sunrise
                 </span>
                 <span
-                  className="font-bold"
+                  className="text-sm sm:text-base font-bold tabular-nums"
                   style={{
                     color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
@@ -323,13 +325,13 @@ export const PrayerTimes = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span
-                  className="text-[10px] uppercase font-semibold"
+                  className="text-[9px] sm:text-[10px] uppercase font-semibold"
                   style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
                 >
                   Sunset
                 </span>
                 <span
-                  className="font-bold"
+                  className="text-sm sm:text-base font-bold tabular-nums"
                   style={{
                     color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
@@ -341,30 +343,31 @@ export const PrayerTimes = () => {
             </div>
           </OrnateCard>
 
-          <OrnateCard variant="dark" topBar={false} corners="all" className="!p-6">
+          <OrnateCard variant="dark" topBar={false} corners="all" className="!p-4 sm:!p-6">
             <h3
-              className="text-lg font-bold mb-4 flex items-center gap-2"
+              className="text-base sm:text-lg font-bold mb-3 sm:mb-4 flex items-center gap-2"
               style={{
                 color: 'var(--text-on-glass)',
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
-              <Moon size={20} style={{ color: 'var(--gold-mid)' }} />
+              <Moon size={18} className="sm:hidden" style={{ color: 'var(--gold-mid)' }} />
+              <Moon size={20} className="hidden sm:block" style={{ color: 'var(--gold-mid)' }} />
               Fasting Times (Ramadan)
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div
-                className="flex justify-between items-center pb-4"
+                className="flex justify-between items-center pb-3 sm:pb-4"
                 style={{ borderBottom: '1px solid var(--gold-mid)' }}
               >
                 <span
-                  className="text-[10px] uppercase font-semibold"
+                  className="text-[9px] sm:text-[10px] uppercase font-semibold"
                   style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
                 >
                   Imsak (Suhoor End)
                 </span>
                 <span
-                  className="font-bold"
+                  className="text-sm sm:text-base font-bold tabular-nums"
                   style={{
                     color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
@@ -375,13 +378,13 @@ export const PrayerTimes = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span
-                  className="text-[10px] uppercase font-semibold"
+                  className="text-[9px] sm:text-[10px] uppercase font-semibold"
                   style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
                 >
                   Maghrib (Fast Break)
                 </span>
                 <span
-                  className="font-bold"
+                  className="text-sm sm:text-base font-bold tabular-nums"
                   style={{
                     color: 'var(--text-on-glass)',
                     fontFamily: 'Georgia, "Times New Roman", serif',
@@ -401,16 +404,16 @@ export const PrayerTimes = () => {
           title="Islamic Calendar"
           subtitle="Today across both calendars"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <OrnateCard variant="dark" topBar={false} corners="all" className="!p-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+            <OrnateCard variant="dark" topBar={false} corners="all" className="!p-4 sm:!p-5">
               <p
-                className="text-[10px] uppercase font-semibold mb-1"
+                className="text-[9px] sm:text-[10px] uppercase font-semibold mb-1"
                 style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
               >
                 Islamic Date (Hijri)
               </p>
               <p
-                className="text-xl font-bold"
+                className="text-base sm:text-xl font-bold"
                 style={{
                   color: 'var(--text-on-glass)',
                   fontFamily: 'Georgia, "Times New Roman", serif',
@@ -421,15 +424,15 @@ export const PrayerTimes = () => {
               
             </OrnateCard>
 
-            <OrnateCard variant="dark" topBar={false} corners="all" className="!p-5">
+            <OrnateCard variant="dark" topBar={false} corners="all" className="!p-4 sm:!p-5">
               <p
-                className="text-[10px] uppercase font-semibold mb-1"
+                className="text-[9px] sm:text-[10px] uppercase font-semibold mb-1"
                 style={{ color: 'var(--gold-mid)', letterSpacing: '0.18em' }}
               >
                 Gregorian Date
               </p>
               <p
-                className="text-xl font-bold"
+                className="text-base sm:text-xl font-bold"
                 style={{
                   color: 'var(--text-on-glass)',
                   fontFamily: 'Georgia, "Times New Roman", serif',

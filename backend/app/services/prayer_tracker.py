@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from app.models.prayer import (
     PrayerName,
     PrayerQada,
+    PrayerQadaEntry,
     PrayerStatistics,
     PrayerStreak,
     PrayerTracking,
@@ -413,3 +414,82 @@ def increment_qada_for_missed_today(
     without disturbing the per-row check-off path.
     """
     return increment_qada(db, user_id, prayer_name)
+
+
+# ---------------------------------------------------------------------------
+# Qada entry helpers (per-action saved records)
+# ---------------------------------------------------------------------------
+
+
+def create_qada_entry(
+    db: Session,
+    user_id: int,
+    prayer_name: PrayerName,
+    made_up_date: date,
+    *,
+    missed_date: Optional[date] = None,
+    is_jamaaah: bool = False,
+    notes: Optional[str] = None,
+) -> PrayerQadaEntry:
+    """Insert a ``prayer_qada_entry`` row recording one qada makeup.
+
+    Called by ``POST /qada/adjust`` when ``delta < 0`` (mark complete).
+    Idempotent on the ``(user, prayer_name, made_up_date)`` unique key —
+    if a row already exists for that triple we update it in place rather
+    than raising, so a repeated tap is a no-op.
+    """
+    row = (
+        db.query(PrayerQadaEntry)
+        .filter(
+            PrayerQadaEntry.user_id == user_id,
+            PrayerQadaEntry.prayer_name == prayer_name,
+            PrayerQadaEntry.made_up_date == made_up_date,
+        )
+        .first()
+    )
+    if row is None:
+        row = PrayerQadaEntry(
+            user_id=user_id,
+            prayer_name=prayer_name,
+            made_up_date=made_up_date,
+            missed_date=missed_date,
+            is_jamaaah=is_jamaaah,
+            notes=notes,
+        )
+        db.add(row)
+    else:
+        # Update fields if the user re-taps (keeps the entry fresh).
+        row.missed_date = missed_date
+        row.is_jamaaah = is_jamaaah
+        row.notes = notes
+    db.flush()
+    return row
+
+
+def delete_latest_qada_entry(
+    db: Session,
+    user_id: int,
+    prayer_name: PrayerName,
+    made_up_date: date,
+) -> bool:
+    """Delete the most recent qada entry for ``(user, prayer, made_up_date)``.
+
+    Called by ``POST /qada/adjust`` when ``delta > 0`` (undo) so the
+    qada entry list stays in sync with the user's intent. Returns
+    ``True`` if a row was deleted, ``False`` if none matched.
+    """
+    row = (
+        db.query(PrayerQadaEntry)
+        .filter(
+            PrayerQadaEntry.user_id == user_id,
+            PrayerQadaEntry.prayer_name == prayer_name,
+            PrayerQadaEntry.made_up_date == made_up_date,
+        )
+        .order_by(PrayerQadaEntry.created_at.desc())
+        .first()
+    )
+    if row is None:
+        return False
+    db.delete(row)
+    db.flush()
+    return True

@@ -23,6 +23,8 @@ from app.models.prayer import (  # noqa: F401
     PrayerTracking,
     PrayerStreak,
     PrayerQada,
+    PrayerQadaEvent,
+    PrayerQadaEntry,
     PrayerSettings,
     PrayerStatistics,
     PrayerName,

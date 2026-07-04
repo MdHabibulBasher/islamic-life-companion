@@ -39,6 +39,7 @@ from app.models.prayer import (
     JuristicMethod,
     PrayerName,
     PrayerQada,
+    PrayerQadaEntry,
     PrayerQadaEvent,
     PrayerSettings,
     PrayerStatistics,
@@ -47,11 +48,13 @@ from app.models.prayer import (
 )
 from app.models.user import User, UserLocationSetting
 from app.schemas.prayer import (
+    AllQadaEntriesResponse,
     AllQadaResponse,
     AllStreaksResponse,
     CsvExportResponse,
     DayPrayerStatus,
     DayTrackingResponse,
+    PrayerQadaEntryResponse,
     PrayerQadaResponse,
     PrayerSettingsResponse,
     PrayerSettingsUpdate,
@@ -67,6 +70,8 @@ from app.schemas.prayer import (
 from app.services.prayer_tracker import (
     PRAYER_ORDER,
     adjust_qada,
+    create_qada_entry,
+    delete_latest_qada_entry,
     get_user_signup_date,
     increment_qada,
     recompute_all_streaks,
@@ -503,6 +508,16 @@ def upsert_tracking(
     # Row toggle never artificially inflates the qada tally.
     if not payload.is_completed and was_completed:
         adjust_qada(db, current_user.id, _name(payload.prayer_name), 1)
+        # Remove the saved qada entry so the Stats view's "qada made
+        # up" count decreases when the user un-ticks a prayer they
+        # previously marked complete (via the Qada tile or the Prayer
+        # Row). This mirrors the Qada tile's "Undo" button behavior.
+        delete_latest_qada_entry(
+            db,
+            current_user.id,
+            _name(payload.prayer_name),
+            payload.tracking_date,
+        )
         db.add(
             PrayerQadaEvent(
                 user_id=current_user.id,
@@ -1004,6 +1019,14 @@ def adjust_qada_endpoint(
             existing_track.is_completed = True
             existing_track.completed_at = datetime.utcnow()
 
+        # Save a standalone qada entry (the separately-saved qada data).
+        create_qada_entry(
+            db,
+            current_user.id,
+            _name(payload.prayer_name),
+            tracking_date,
+        )
+
         recompute_streak(db, current_user.id, _name(payload.prayer_name))
         recompute_streak(db, current_user.id, "all")
         recompute_statistics(db, current_user.id)
@@ -1022,6 +1045,15 @@ def adjust_qada_endpoint(
             recompute_streak(db, current_user.id, _name(payload.prayer_name))
             recompute_streak(db, current_user.id, "all")
             recompute_statistics(db, current_user.id)
+
+        # Remove the qada entry so the saved qada data stays in sync
+        # with the user's intent (undo = the makeup didn't happen).
+        delete_latest_qada_entry(
+            db,
+            current_user.id,
+            _name(payload.prayer_name),
+            tracking_date,
+        )
 
         event_reason = "qada_tile_undo"
 
@@ -1105,6 +1137,53 @@ def get_qada_history(
         "total_made_up": sum(i["made_up"] for i in items),
         "total_added": sum(i["added"] for i in items),
     }
+
+
+@router.get("/qada/entries", response_model=AllQadaEntriesResponse)
+def get_qada_entries(
+    start: Optional[date] = Query(
+        None,
+        description="Earliest made_up_date (inclusive). If omitted, no lower bound.",
+    ),
+    end: Optional[date] = Query(
+        None,
+        description="Latest made_up_date (inclusive). If omitted, no upper bound.",
+    ),
+    prayer_name: Optional[PrayerName] = Query(
+        None,
+        description="Filter to a single prayer. If omitted, all 5 prayers are returned.",
+    ),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List the user's saved qada makeup entries (one row per action).
+
+    Each entry records one ``POST /qada/adjust`` mark-complete the user
+    performed via the Qada tile, stored independently of the lifetime
+    ``prayer_qada`` counters and the ``prayer_qada_event`` audit log.
+    Undo deletes the matching entry so the list reflects the user's
+    current intent.
+    """
+    q = db.query(PrayerQadaEntry).filter(PrayerQadaEntry.user_id == current_user.id)
+    if start is not None:
+        q = q.filter(PrayerQadaEntry.made_up_date >= start)
+    if end is not None:
+        q = q.filter(PrayerQadaEntry.made_up_date <= end)
+    if prayer_name is not None:
+        q = q.filter(PrayerQadaEntry.prayer_name == prayer_name.value)
+    rows = q.order_by(PrayerQadaEntry.made_up_date.desc(), PrayerQadaEntry.created_at.desc()).all()
+
+    per_prayer: dict[str, int] = {}
+    for p in PRAYER_ORDER:
+        per_prayer[p.value] = 0
+    for r in rows:
+        per_prayer[r.prayer_name] = per_prayer.get(r.prayer_name, 0) + 1
+
+    return AllQadaEntriesResponse(
+        entries=[PrayerQadaEntryResponse.model_validate(r) for r in rows],
+        total=len(rows),
+        per_prayer=per_prayer,
+    )
 
 
 @router.get("/qada/stats", response_model=QadaStatsResponse)

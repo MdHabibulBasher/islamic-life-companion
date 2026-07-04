@@ -237,6 +237,34 @@ class QadaStatsResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Qada entries (saved per-action makeup records)
+# ---------------------------------------------------------------------------
+
+
+class PrayerQadaEntryResponse(BaseModel):
+    """One qada makeup action the user performed."""
+
+    id: int
+    prayer_name: PrayerName
+    made_up_date: date
+    missed_date: Optional[date] = None
+    is_jamaaah: bool = False
+    notes: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AllQadaEntriesResponse(BaseModel):
+    """List of qada entries + per-prayer + overall totals."""
+
+    entries: List[PrayerQadaEntryResponse]
+    total: int
+    per_prayer: dict[str, int]  # prayer_name -> count
+
+
+# ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
 

@@ -239,6 +239,49 @@ class PrayerQadaEvent(Base):
 
 
 # ---------------------------------------------------------------------------
+# 4b. PrayerQadaEntry — one row per qada makeup action (saved separately).
+# ---------------------------------------------------------------------------
+
+
+class PrayerQadaEntry(Base):
+    """One row per qada makeup the user actually performed.
+
+    Distinct from ``prayer_qada`` (lifetime aggregate counters) and
+    ``prayer_qada_event`` (append-only audit log of every delta). This
+    table stores a **queryable, per-action record** so the app can answer
+    "what qada did I do on July 3?" or list a user's makeup history.
+
+    Written by ``POST /qada/adjust`` when ``delta < 0`` (mark complete).
+    Deleted (most-recent-match) when ``delta > 0`` (undo) so the list
+    stays clean; the ``prayer_qada_event`` audit log still retains the
+    undo record for audit purposes.
+
+    ``made_up_date`` is the calendar date the makeup is *for* (the
+    ``tracking_date`` passed by the front-end's Qada tile).
+    ``missed_date`` is the original date the prayer was missed —
+    nullable because we don't always know it (auto-aging doesn't
+    tell us).
+    """
+
+    __tablename__ = "prayer_qada_entry"
+    __table_args__ = (
+        UniqueConstraint("user_id", "prayer_name", "made_up_date", name="uq_prayer_qada_entry_user_name_date"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    prayer_name = Column(String(16), nullable=False, index=True)
+
+    made_up_date = Column(Date, nullable=False, index=True)
+    missed_date = Column(Date, nullable=True)
+    is_jamaaah = Column(Boolean, default=False, nullable=False)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+# ---------------------------------------------------------------------------
 # 5. PrayerSettings — one row per user.
 # ---------------------------------------------------------------------------
 

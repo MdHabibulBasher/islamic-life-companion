@@ -366,6 +366,7 @@ interface PageHeaderProps {
   subtitle?: string
   ornament?: React.ReactNode
   actions?: React.ReactNode
+  centered?: boolean
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
@@ -373,9 +374,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   subtitle,
   ornament,
   actions,
+  centered = false,
 }) => (
-  <header className="flex items-end justify-between gap-4 mb-6 mt-1 flex-wrap">
-    <div className="flex items-end gap-3 min-w-0">
+  <header className={`flex items-end justify-between gap-3 sm:gap-4 mb-3 sm:mb-6 mt-1 flex-wrap ${centered ? 'justify-center' : ''}`}>
+    <div className={`flex items-end gap-3 min-w-0 ${centered ? 'mx-auto' : ''}`}>
       {ornament && (
         <span
           className="shrink-0 mb-1"
@@ -384,11 +386,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           {ornament}
         </span>
       )}
-      <div className="min-w-0">
+      <div className={`min-w-0 ${centered ? 'text-center' : ''}`}>
         <h1
-          className="text-2xl sm:text-3xl font-bold tracking-wide leading-tight"
+          className={`text-2xl sm:text-3xl font-bold tracking-wide leading-tight ${centered ? 'text-center' : ''}`}
           style={{
-            color: 'var(--text-on-glass)',
+            color: 'var(--manuscript-cream, #fbf3df)',
             fontFamily: 'Georgia, "Times New Roman", serif',
             textShadow: '0 1px 0 rgba(0,0,0,0.45)',
           }}
@@ -398,20 +400,22 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         {subtitle && (
           <p
             className="text-sm mt-0.5"
-            style={{ color: 'var(--text-on-glass)', opacity: 0.7 }}
+            style={{ color: 'var(--manuscript-cream, #fbf3df)', opacity: 0.7 }}
           >
             {subtitle}
           </p>
         )}
       </div>
-      <span
-        className="hidden sm:block flex-1 h-px mb-2 min-w-[40px]"
-        style={{
-          background:
-            'linear-gradient(90deg, var(--gold-mid) 0%, transparent 80%)',
-        }}
-        aria-hidden
-      />
+      {centered ? null : (
+        <span
+          className="hidden sm:block flex-1 h-px mb-2 min-w-[40px]"
+          style={{
+            background:
+              'linear-gradient(90deg, var(--gold-mid) 0%, transparent 80%)',
+          }}
+          aria-hidden
+        />
+      )}
     </div>
     {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
   </header>

@@ -694,3 +694,168 @@ def test_qada_history_filters_by_date_range(client, auth_headers, db_session, te
     dhuhr = next(i for i in data["items"] if i["prayer_name"] == PrayerName.DHUHR.value)
     assert dhuhr["made_up"] == 1  # only the in-range one
     assert data["total_made_up"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Qada entries (prayer_qada_entry — saved per-action makeup records)
+# ---------------------------------------------------------------------------
+
+
+def test_qada_adjust_creates_entry(client, auth_headers, db_session, test_user):
+    """POST /qada/adjust with delta=-1 creates a prayer_qada_entry row."""
+    from app.models.prayer import PrayerQadaEntry
+
+    today = date.today()
+    r = client.post(
+        "/api/v1/prayer-tracking/qada/adjust",
+        headers=auth_headers,
+        json={
+            "prayer_name": PrayerName.FAJR.value,
+            "delta": -1,
+            "tracking_date": today.isoformat(),
+        },
+    )
+    assert r.status_code == 200, r.text
+
+    entry = (
+        db_session.query(PrayerQadaEntry)
+        .filter(
+            PrayerQadaEntry.user_id == test_user.id,
+            PrayerQadaEntry.prayer_name == PrayerName.FAJR.value,
+            PrayerQadaEntry.made_up_date == today,
+        )
+        .first()
+    )
+    assert entry is not None
+    assert entry.made_up_date == today
+
+
+def test_qada_entries_endpoint(client, auth_headers, db_session, test_user):
+    """GET /qada/entries returns the saved qada entries."""
+    from app.models.prayer import PrayerQadaEntry
+
+    today = date.today()
+    db_session.add(
+        PrayerQadaEntry(
+            user_id=test_user.id,
+            prayer_name=PrayerName.DHUHR.value,
+            made_up_date=today,
+        )
+    )
+    db_session.commit()
+
+    r = client.get("/api/v1/prayer-tracking/qada/entries", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["total"] == 1
+    assert len(data["entries"]) == 1
+    assert data["entries"][0]["prayer_name"] == PrayerName.DHUHR.value
+    assert data["per_prayer"]["dhuhr"] == 1
+
+
+def test_qada_entries_date_filter(client, auth_headers, db_session, test_user):
+    """GET /qada/entries?start=&end= filters by made_up_date."""
+    from app.models.prayer import PrayerQadaEntry
+
+    today = date.today()
+    old_date = today - timedelta(days=30)
+    db_session.add_all(
+        [
+            PrayerQadaEntry(
+                user_id=test_user.id,
+                prayer_name=PrayerName.ASR.value,
+                made_up_date=old_date,
+            ),
+            PrayerQadaEntry(
+                user_id=test_user.id,
+                prayer_name=PrayerName.MAGHRIB.value,
+                made_up_date=today,
+            ),
+        ]
+    )
+    db_session.commit()
+
+    start = (today - timedelta(days=7)).isoformat()
+    r = client.get(
+        f"/api/v1/prayer-tracking/qada/entries?start={start}",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["total"] == 1
+    assert data["entries"][0]["prayer_name"] == PrayerName.MAGHRIB.value
+
+
+def test_qada_undo_removes_entry(client, auth_headers, db_session, test_user):
+    """POST /qada/adjust with delta=+1 (undo) removes the qada entry."""
+    from app.models.prayer import PrayerQadaEntry
+
+    today = date.today()
+    # Mark complete (creates entry)
+    r = client.post(
+        "/api/v1/prayer-tracking/qada/adjust",
+        headers=auth_headers,
+        json={
+            "prayer_name": PrayerName.ISHA.value,
+            "delta": -1,
+            "tracking_date": today.isoformat(),
+        },
+    )
+    assert r.status_code == 200
+    entry = (
+        db_session.query(PrayerQadaEntry)
+        .filter(
+            PrayerQadaEntry.user_id == test_user.id,
+            PrayerQadaEntry.prayer_name == PrayerName.ISHA.value,
+        )
+        .first()
+    )
+    assert entry is not None
+
+    # Undo (removes entry)
+    r = client.post(
+        "/api/v1/prayer-tracking/qada/adjust",
+        headers=auth_headers,
+        json={
+            "prayer_name": PrayerName.ISHA.value,
+            "delta": 1,
+            "tracking_date": today.isoformat(),
+        },
+    )
+    assert r.status_code == 200
+    entry = (
+        db_session.query(PrayerQadaEntry)
+        .filter(
+            PrayerQadaEntry.user_id == test_user.id,
+            PrayerQadaEntry.prayer_name == PrayerName.ISHA.value,
+        )
+        .first()
+    )
+    assert entry is None
+
+
+def test_qada_entry_preserves_prayer_row(client, auth_headers, db_session, test_user):
+    """Tapping Qada tile "Mark complete" still flips the Prayer Row (unchanged)."""
+    today = date.today()
+    r = client.post(
+        "/api/v1/prayer-tracking/qada/adjust",
+        headers=auth_headers,
+        json={
+            "prayer_name": PrayerName.FAJR.value,
+            "delta": -1,
+            "tracking_date": today.isoformat(),
+        },
+    )
+    assert r.status_code == 200
+
+    track = (
+        db_session.query(PrayerTracking)
+        .filter(
+            PrayerTracking.user_id == test_user.id,
+            PrayerTracking.tracking_date == today,
+            PrayerTracking.prayer_name == PrayerName.FAJR.value,
+        )
+        .first()
+    )
+    assert track is not None
+    assert track.is_completed is True

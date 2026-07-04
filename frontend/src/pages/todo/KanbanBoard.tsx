@@ -295,16 +295,31 @@ export const KanbanBoard = ({ tasks, onToggle, onDelete }: KanbanBoardProps) => 
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {COLUMNS.map((column) => (
-          <KanbanColumn
-            key={column.id}
-            column={column}
-            tasks={columns[column.id]}
-            onToggle={onToggle}
-            onDelete={onDelete}
-          />
-        ))}
+      {/* Mobile: 2 columns. Left = Ideas + To do, Right = Doing + Done.
+          Desktop: 4 columns in a single row. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 items-start">
+        <div className="flex flex-col gap-2 sm:gap-3 lg:contents">
+          {COLUMNS.slice(0, 2).map((column) => (
+            <KanbanColumn
+              key={column.id}
+              column={column}
+              tasks={columns[column.id]}
+              onToggle={onToggle}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 sm:gap-3 lg:contents">
+          {COLUMNS.slice(2).map((column) => (
+            <KanbanColumn
+              key={column.id}
+              column={column}
+              tasks={columns[column.id]}
+              onToggle={onToggle}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
       </div>
 
       <DragOverlay
